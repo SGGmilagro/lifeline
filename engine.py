@@ -261,6 +261,12 @@ class Engine:
             self._alert("dispatch_proposal", sid,
                         f"Proposed: Team {t} to {sid} (priority {prio.get(sid)}, {self.sites[sid]['grade_label']}, "
                         f"first stop on its optimised route). Reply \"ack {sid}\" to dispatch.")
+        # Show each route from where the team really goes next: its pending proposal, or its current site.
+        for t, v in st["teams"].items():
+            r = st["routes"].get(t, [])
+            first = next((sid for sid, tm in st["proposals"].items() if tm == t), None) or v["site"]
+            if first and (not r or r[0] != first):
+                st["routes"][t] = [first] + [x for x in r if x != first]
 
     def ack(self, target):
         """Commander approval for one site or 'all'. Returns what changed."""

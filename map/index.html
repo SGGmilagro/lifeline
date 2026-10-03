@@ -102,12 +102,46 @@
   .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
   @media (max-width:900px) { main { grid-template-columns:1fr; grid-template-rows:55vh auto; }
                              aside { border-left:0; border-top:1px solid var(--line); } .badges { margin-left:0; } }
+
+  /* ---------- polish ---------- */
+  header { gap:10px 14px; padding:10px 14px; }
+  .brand { font-size:18px; }
+  .regionpick { display:flex; flex-direction:column; font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .regionpick select { margin-top:2px; font-size:14px; padding:6px 10px; min-width:240px; }
+  header .stat { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:5px 12px; }
+  header .stat b { font-size:19px; }
+  aside { padding:12px 14px 50px; }
+  section, details.more, details.guide { margin-bottom:14px; }
+  h3 { font-size:12px; color:var(--ink); letter-spacing:.04em; text-transform:none; font-weight:700; }
+  h3 .note, summary .note { color:var(--muted); font-weight:400; font-size:11px; }
+  .card { border-radius:10px; padding:10px 12px; }
+  .decide .card { border-left:4px solid var(--damaged); background:linear-gradient(90deg, rgba(210,153,34,.10), var(--panel2) 40%); }
+  .decision { padding:8px 0; } .decision span { font-size:13.5px; }
+  button.go { padding:6px 14px; border-radius:8px; }
+  details summary { cursor:pointer; font-size:12px; font-weight:700; padding:6px 2px; list-style:none; display:flex; gap:8px; align-items:center; }
+  details summary::-webkit-details-marker { display:none; }
+  details summary::before { content:'▸'; color:var(--muted); transition:transform .15s; }
+  details[open] summary::before { transform:rotate(90deg); }
+  details.guide { background:#10233d; border:1px solid #1f6feb55; border-radius:10px; padding:4px 12px 8px; }
+  details.guide ol { margin:4px 0 2px; padding-left:18px; font-size:12.5px; line-height:1.5; color:#c9d1d9; }
+  details.guide li { margin-bottom:4px; }
+  code { background:#0b0e13; border:1px solid var(--line); border-radius:4px; padding:0 4px; font-size:12px; }
+  #help { max-width:none; width:auto; right:auto; padding:8px 10px; }
+  #help .lg { display:flex; flex-wrap:wrap; align-items:center; gap:4px 6px; margin:2px 0; color:var(--ink); }
+  #help .lg i { display:inline-block; width:10px; height:10px; border-radius:50%; margin-left:6px; }
+  #help .lg i:first-child { margin-left:0; }
+  #help .ln { display:inline-block; width:22px; border-top:3px dashed; margin-left:6px; }
+  #loading { position:absolute; top:12px; left:50%; transform:translateX(-50%); z-index:1000; background:rgba(20,25,34,.95);
+             border:1px solid var(--line); border-radius:20px; padding:6px 14px; font-size:12.5px; }
+  #loading[hidden] { display:none; }
+  #map { background:#0d1117 radial-gradient(circle at 1px 1px, #1c2330 1px, transparent 0) 0 0/22px 22px; }
+  .leaflet-container { background:transparent; }
 </style>
 </head>
 <body>
 <header>
-  <div class="brand">LIFELINE COMMAND<small id="subtitle">Earthquake 6 Feb 2023 · replay</small></div>
-  <select id="region" title="Incident region"></select>
+  <div class="brand">🛟 LIFELINE<small id="subtitle">Earthquake 6 Feb 2023 · replay</small></div>
+  <label class="regionpick"><span>Incident</span><select id="region" title="Incident region"></select></label>
   <div class="stat"><b id="clock">–</b><span id="clocklbl">replay clock</span></div>
   <div class="stat"><b id="hours">–</b><span>hours after quake</span></div>
   <div class="stat"><b id="ranked">–</b><span>sites ranked</span></div>
@@ -127,50 +161,56 @@
       <canvas id="scopecv" width="520" height="150"></canvas>
       <div class="muted" style="font-size:11px">Real signal of this GB10's two WiFi antennas, last 15 s. A person moving
         through the room bends the radio waves; RuView's classifier turns that into "movement".</div></div>
-    <div id="help"><b>How to read this map</b> Each dot is a building graded from satellite photos.
-      Red = destroyed, amber = damaged, grey = possibly damaged. Green pulsing = someone alive.
-      White labels = rescue teams; dashed lines = each team's optimised route (OR-Tools, straight-line).
-      Click a building for its satellite photos and occupancy estimate.</div>
+    <div id="help">
+      <div class="lg"><i style="background:var(--destroyed)"></i>Destroyed <i style="background:var(--damaged)"></i>Damaged
+        <i style="background:var(--possible)"></i>Possibly damaged</div>
+      <div class="lg"><i style="background:var(--survivor)"></i>Sign of life <i style="background:var(--nosignal)"></i>No signal yet (not "empty")</div>
+      <div class="lg"><b class="ln" style="border-color:#ff7b72"></b>Team 1 <b class="ln" style="border-color:#79c0ff"></b>Team 2
+        <b class="ln" style="border-color:#d2a8ff"></b>Team 3 <span class="muted">routes (OR-Tools)</span></div>
+    </div>
+    <div id="loading" hidden>🛰️ Loading satellite imagery…</div>
   </div>
   <aside>
-    <section>
-      <h3>Proof <span class="note muted">measured on this GB10, not claimed</span></h3>
-      <div class="card" id="proof"><span class="muted">loading…</span>
-      </div>
-    </section>
-    <section>
-      <h3>Your decisions <span class="note muted">same as replying "ack" in Telegram</span></h3>
+    <details class="guide" id="guide" open>
+      <summary>👋 Start here</summary>
+      <ol>
+        <li><b>Review the plan.</b> Dots are damaged buildings from satellite data; dashed lines are each team's route.</li>
+        <li><b>Approve.</b> Press <i>Approve</i> below, or reply <code>ack 5</code> in Telegram. Nothing moves without you.</li>
+        <li><b>Watch for life.</b> Reports (<code>report 8 tapping heard</code>) and sensors raise 🟡 then 🟢. The plan re-solves.</li>
+      </ol>
+    </details>
+    <section class="decide">
+      <h3>✋ Waiting for your decision</h3>
       <div class="card" id="decisions"></div>
     </section>
     <section>
-      <h3>Building <span id="siteid" class="note muted"></span></h3>
-      <div class="card" id="detail"><span class="muted">Click a building on the map or in the list.</span></div>
+      <h3>🏢 Selected building <span id="siteid" class="note"></span></h3>
+      <div class="card" id="detail"><span class="muted">Click a building on the map or in the list below.</span></div>
     </section>
     <section>
-      <h3>WiFi sensing (RuView) <a href="http://localhost:3000/ui/index.html" target="_blank" class="note muted">open RuView ↗</a></h3>
-      <div class="card" id="ruview"><span class="muted">connecting…</span></div>
-    </section>
-    <section>
-      <h3>Signs of life</h3>
+      <h3>💓 Signs of life</h3>
       <div class="card" id="people"></div>
     </section>
     <section>
-      <h3>Agent → Telegram</h3>
-      <div class="card feed" id="feed"></div>
-    </section>
-    <section>
-      <h3>Where to dig</h3>
-      <div class="legend">
-        <span><i style="background:var(--destroyed)"></i>Destroyed</span><span><i style="background:var(--damaged)"></i>Damaged</span>
-        <span><i style="background:var(--possible)"></i>Possibly damaged</span><span><i style="background:var(--survivor)"></i>Survivor</span>
-        <span><i style="background:var(--nosignal)"></i>No signal after 2 scans</span>
-      </div>
+      <h3>📍 Where to dig <span class="note">ranked by people likely trapped</span></h3>
       <div class="card" id="list"></div>
     </section>
+    <details class="more" open>
+      <summary>💬 What the agent posted to Telegram</summary>
+      <div class="card feed" id="feed"></div>
+    </details>
+    <details class="more">
+      <summary>📡 WiFi sensing (RuView) <a href="http://localhost:3000/ui/index.html" target="_blank" class="note">open RuView ↗</a></summary>
+      <div class="card" id="ruview"><span class="muted">connecting…</span></div>
+    </details>
+    <details class="more">
+      <summary>🧪 Proof: measured on this GB10</summary>
+      <div class="card" id="proof"><span class="muted">loading…</span></div>
+    </details>
   </aside>
 </main>
 <div id="testbanner" hidden></div>
-<div id="attr">Damage grading: Copernicus EMS EMSR648, © European Union. <span id="imgattr"></span>Sensor data simulated. No signal ≠ nobody.</div>
+<div id="attr">Damage grading: Copernicus EMS EMSR648, © European Union. <span id="imgattr"></span>Simulated sensors are marked. No signal ≠ nobody.</div>
 <script>
 const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
@@ -178,8 +218,9 @@ const COLORS = { Destroyed:'--destroyed', Damaged:'--damaged', 'Possibly damaged
 const STATUS = { unsearched:'no team yet', dispatched:'team searching', scanning:'team searching',
   no_signal_2_scans:'no signal after 2 scans', possible_survivor:'possible survivor', confirmed_survivor:'survivor confirmed' };
 const map = L.map('map', { attributionControl:false });
+map.createPane('ctx'); map.getPane('ctx').style.zIndex = 150;          // low-res context image, under the tiles
 let layers = L.layerGroup().addTo(map), overlay = null, region = null, selected = null, last = null;
-let imgLayer = 'after', tilesMeta = null;
+let imgLayer = 'after', tilesMeta = null, ctxLayer = null;
 const name = id => 'Building ' + parseInt(id.slice(2), 10);
 const team = t => 'Team ' + t.slice(1);
 function setToggle() {
@@ -265,10 +306,16 @@ function render(d) {
     $('subtitle').textContent = d.live ? 'LIVE drill at our venue · real WiFi sensor' : 'Earthquake 6 Feb 2023 · replay';
     $('attr').firstChild.textContent = d.live ? 'Footprint © OpenStreetMap contributors. ' : 'Damage grading: Copernicus EMS EMSR648, © European Union. ';
     if (overlay) { map.removeLayer(overlay); overlay = null; }
+    if (ctxLayer) { map.removeLayer(ctxLayer); ctxLayer = null; }
+    if (d.overlay_img && d.bounds) ctxLayer = L.imageOverlay(d.overlay_img, d.bounds, { opacity:1, interactive:false, pane:'ctx' }).addTo(map);
     if (d.tiles) {
       tilesMeta = d.tiles;
+      const tb = L.latLngBounds(d.tiles.bounds); if (d.bounds) tb.extend(d.bounds);
+      map.setMaxBounds(tb.pad(0.15)); map.setMinZoom(d.tiles.minzoom);
       overlay = L.tileLayer(d.tiles.url.replace('{layer}', imgLayer), { minZoom:d.tiles.minzoom, maxNativeZoom:d.tiles.maxzoom,
-        maxZoom:20, bounds:d.tiles.bounds, errorTileUrl:'' }).addTo(map);
+        maxZoom:20, bounds:d.tiles.bounds, keepBuffer:4, updateWhenZooming:false }).addTo(map);
+      overlay.on('loading', () => $('loading').hidden = false);
+      overlay.on('load', () => $('loading').hidden = true);
       overlay.bringToBack();
       if (!d.tiles.before_date) imgLayer = 'after';
       overlay.setUrl(d.tiles.url.replace('{layer}', imgLayer));
@@ -279,8 +326,13 @@ function render(d) {
       overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
       $('imgtoggle').hidden = true;
       $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
-    } else { $('imgtoggle').hidden = true; $('imgattr').textContent = ''; }
-    map.fitBounds(L.latLngBounds(d.sites.map(s => [s.lat, s.lon])), { padding:[60,60], maxZoom: d.live ? 18 : 17 });
+    } else { $('imgtoggle').hidden = true; $('imgattr').textContent = ''; map.setMaxBounds(null); map.setMinZoom(3); }
+    // Fit to the main cluster: drop the 15% of buildings farthest from the median (outliers stay pannable).
+    const med = k => d.sites.map(s => s[k]).sort((a, b) => a - b)[Math.floor(d.sites.length / 2)];
+    const c = [med('lat'), med('lon')];
+    const near = [...d.sites].sort((a, b) => map.distance(c, [a.lat, a.lon]) - map.distance(c, [b.lat, b.lon]))
+      .slice(0, Math.max(1, Math.ceil(d.sites.length * 0.85)));
+    map.fitBounds(L.latLngBounds(near.map(s => [s.lat, s.lon])), { padding:[70,70], maxZoom: d.live ? 18 : 17 });
     loadRegions();
   }
 
@@ -310,7 +362,8 @@ function render(d) {
     }
   }
   for (const t of d.teams)
-    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:team(t.id), iconSize:[52,18], iconAnchor:[26,28] }) })
+    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:team(t.id), iconSize:[52,18],
+      iconAnchor:[26, 28 + 22 * (parseInt(t.id.slice(1), 10) - 1)] }) })
       .bindTooltip(t.site ? `${team(t.id)} at ${name(t.site)}` : `${team(t.id)} free`).addTo(layers);
 
   const by = Object.fromEntries(d.sites.map(s => [s.id, s]));
@@ -409,7 +462,7 @@ async function pollScope() {
   if (!last || !last.live) { $('scope').hidden = true; setTimeout(pollScope, 1500); return; }
   try {
     const l = await (await fetch('/livesignal')).json();
-    $('scope').hidden = false; $('help').hidden = true;
+    $('scope').hidden = false;
     liveMoving = !!l.presence;
     $('scope').classList.toggle('moving', liveMoving);
     $('scopestate').className = liveMoving ? 'on' : '';
