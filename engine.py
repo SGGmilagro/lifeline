@@ -163,9 +163,11 @@ class Engine:
                     st["teams"][team].update(site=sid, lat=site["lat"], lon=site["lon"])
                     st["sites"][sid].update(status="dispatched", team=team)
                     done.append(f"Team {team} dispatched to {sid}")
+                    self._alert("dispatched", sid, f"Commander ack received: Team {team} dispatched to {sid}.")
                 if sid in st["survivor_ack"]:
                     st["survivor_ack"].remove(sid)
                     done.append(f"Survivor alert at {sid} acknowledged")
+                    self._alert("ack_survivor", sid, f"Commander ack received for survivor alert at {sid}.")
             self._save()
             return done or [f"Nothing awaiting ack for {target}"]
 
@@ -317,6 +319,7 @@ class Engine:
                 ss = st["sites"][sid]
                 sites.append({**row, "name": self.sites[sid]["name"],
                               "grade_label": self.sites[sid]["grade_label"], "status": ss["status"],
+                              "escalated": ss["escalated"],
                               "team": ss["team"] or st["proposals"].get(sid),
                               "team_state": "on_site" if ss["team"] else
                                             "awaiting_ack" if sid in st["proposals"] else None})
@@ -336,8 +339,65 @@ class Engine:
                             f"Sensors: simulated today (source: {self._sensor_source()})",
                             "All inference on this GB10"],
             }
+            out["status_text"] = self._render_status(out)
+            out["people_text"] = self._render_people(out)
+            out["heartbeat_text"] = self._render_heartbeat(out) if out["new_alerts"] else "HEARTBEAT_OK"
             out["compute_seconds"] = round(time.perf_counter() - t0, 4)
             return out
+
+    # Pre-rendered Telegram text, so every number the agent posts comes straight from the engine.
+    FOOTER = "Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine."
+
+    def _ack_lines(self, b):
+        st = self.state
+        lines = []
+        for sid in b["awaiting_ack"]:
+            if sid in st["proposals"]:
+                lines.append(f"NEEDS YOUR ACK: dispatch Team {st['proposals'][sid]} to {sid} (reply \"ack {sid}\")")
+            else:
+                lines.append(f"NEEDS YOUR ACK: survivor at {sid} (reply \"ack {sid}\")")
+        return lines
+
+    def _render_status(self, b):
+        L = [f"LIFELINE | Kahramanmaras | replay +{b['hours_since_collapse']}h since 04:17", "TOP SITES"]
+        for s in b["sites_ranked"][:5]:
+            team = f"Team {s['team']} {'on site' if s['team_state'] == 'on_site' else 'proposed'}" \
+                if s["team"] else "no team"
+            why = s["reasons"][0] if s["status"].endswith("survivor") else s["reasons"][-1]
+            flag = "ESCALATED " if s["escalated"] else ""
+            L.append(f"{s['priority']}. {s['id']} | {s['grade_label']} | {'night, residential' if self.sites[s['id']]['building_use'].lower().startswith('residential') else 'non-residential'} | {flag}{s['status']} | {team} | why: {why}")
+        if b["people"]:
+            L.append(f"SIGNS OF LIFE (sensor: {b['people'][0]['source']})")
+            for p in b["people"]:
+                L.append(f"- {p['site_id']}: breathing {p['breathing_bpm']} bpm ({p['trend']}), "
+                         f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
+                         f"{'CONFIRMED' if p['status'] == 'confirmed_survivor' else 'POSSIBLE'}")
+        else:
+            L.append("SIGNS OF LIFE: none detected yet (no signal is not the same as nobody)")
+        c = b["counters"]
+        L.append(f"Teams deployed {c['teams_deployed']}/3 | survivors confirmed {c['survivors_confirmed']} | "
+                 f"no signal after 2 scans {c['no_signal_2_scans']}")
+        L += self._ack_lines(b)
+        L.append(self.FOOTER)
+        return "\n".join(L)
+
+    def _render_people(self, b):
+        if not b["people"]:
+            return ("No signs of life detected yet. No signal does not mean nobody.\n" + self.FOOTER)
+        L = [f"SIGNS OF LIFE (sensor: {b['people'][0]['source']}, simulated today)"]
+        for p in b["people"]:
+            L.append(f"- {p['site_id']}: breathing {p['breathing_bpm']} bpm ({p['trend']}), "
+                     f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
+                     f"confidence {p['confidence']}, {p['status']}, last reading {p['time']}")
+        L.append(self.FOOTER)
+        return "\n".join(L)
+
+    def _render_heartbeat(self, b):
+        L = [f"LIFELINE ALERT | replay +{b['hours_since_collapse']}h since 04:17"]
+        L += [f"- {a['text']}" for a in b["new_alerts"] if a["type"] != "dispatch_proposal"]
+        L += self._ack_lines(b)
+        L.append(self.FOOTER)
+        return "\n".join(L)
 
     def _sensor_source(self):
         try:

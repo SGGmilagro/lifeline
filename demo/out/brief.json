@@ -1,0 +1,289 @@
+{
+ "generated_utc": "2026-10-03T18:30:22+00:00",
+ "replay_clock": "2023-02-06 10:03 local",
+ "hours_since_collapse": 5.8,
+ "event": "Kahramanmaras earthquake, 6 Feb 2023 04:17 local",
+ "counters": {
+  "sites_ranked": 16,
+  "teams_deployed": 1,
+  "survivors_confirmed": 0,
+  "possible_survivors": 0,
+  "no_signal_2_scans": 0,
+  "hours_since_collapse": 5.8,
+  "baseline_first_official_map_hours": 40
+ },
+ "sites_ranked": [
+  {
+   "id": "B-06",
+   "priority": 1,
+   "score": 0.92,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 23,691 m2"
+   ],
+   "name": "Block B-06, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "dispatched",
+   "escalated": false,
+   "team": "T1",
+   "team_state": "on_site"
+  },
+  {
+   "id": "B-10",
+   "priority": 2,
+   "score": 0.92,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 38,757 m2"
+   ],
+   "name": "Block B-10, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": "T2",
+   "team_state": "awaiting_ack"
+  },
+  {
+   "id": "B-09",
+   "priority": 3,
+   "score": 0.83,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 16,268 m2"
+   ],
+   "name": "Block B-09, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": "T3",
+   "team_state": "awaiting_ack"
+  },
+  {
+   "id": "B-08",
+   "priority": 4,
+   "score": 0.593,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 8,317 m2"
+   ],
+   "name": "Block B-08, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-03",
+   "priority": 5,
+   "score": 0.555,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 7,272 m2"
+   ],
+   "name": "Block B-03, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-01",
+   "priority": 6,
+   "score": 0.525,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 6,510 m2"
+   ],
+   "name": "Block B-01, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-05",
+   "priority": 7,
+   "score": 0.517,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 6,327 m2"
+   ],
+   "name": "Block B-05, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-04",
+   "priority": 8,
+   "score": 0.453,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 4,846 m2"
+   ],
+   "name": "Block B-04, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-11",
+   "priority": 9,
+   "score": 0.4,
+   "reasons": [
+    "Satellite grade Damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 10,499 m2"
+   ],
+   "name": "Block B-11, Kahramanmaras AOI04",
+   "grade_label": "Damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-13",
+   "priority": 10,
+   "score": 0.376,
+   "reasons": [
+    "Satellite grade Damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 9,261 m2"
+   ],
+   "name": "Block B-13, Kahramanmaras AOI04",
+   "grade_label": "Damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-07",
+   "priority": 11,
+   "score": 0.357,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 3,003 m2"
+   ],
+   "name": "Block B-07, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-12",
+   "priority": 12,
+   "score": 0.347,
+   "reasons": [
+    "Satellite grade Damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 7,891 m2"
+   ],
+   "name": "Block B-12, Kahramanmaras AOI04",
+   "grade_label": "Damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-02",
+   "priority": 13,
+   "score": 0.276,
+   "reasons": [
+    "Satellite grade Destroyed (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 1,726 m2"
+   ],
+   "name": "Block B-02, Kahramanmaras AOI04",
+   "grade_label": "Destroyed",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-14",
+   "priority": 14,
+   "score": 0.176,
+   "reasons": [
+    "Satellite grade Possibly damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 8,099 m2"
+   ],
+   "name": "Block B-14, Kahramanmaras AOI04",
+   "grade_label": "Possibly damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-16",
+   "priority": 15,
+   "score": 0.091,
+   "reasons": [
+    "Satellite grade Possibly damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 2,157 m2"
+   ],
+   "name": "Block B-16, Kahramanmaras AOI04",
+   "grade_label": "Possibly damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  },
+  {
+   "id": "B-15",
+   "priority": 16,
+   "score": 0.085,
+   "reasons": [
+    "Satellite grade Possibly damaged (Copernicus, not an inspection)",
+    "Residential block, collapse at 04:17: people likely home",
+    "Block footprint 1,899 m2"
+   ],
+   "name": "Block B-15, Kahramanmaras AOI04",
+   "grade_label": "Possibly damaged",
+   "status": "unsearched",
+   "escalated": false,
+   "team": null,
+   "team_state": null
+  }
+ ],
+ "people": [],
+ "new_alerts": [],
+ "awaiting_ack": [
+  "B-10",
+  "B-09"
+ ],
+ "compute_device": "Dell Pro Max GB10 (local)",
+ "honesty": [
+  "Damage grading: Copernicus EMS replay (EMSR648 AOI04), satellite not inspection",
+  "Sensors: simulated today (source: replay)",
+  "All inference on this GB10"
+ ],
+ "status_text": "LIFELINE | Kahramanmaras | replay +5.8h since 04:17\nTOP SITES\n1. B-06 | Destroyed | night, residential | dispatched | Team T1 on site | why: Block footprint 23,691 m2\n2. B-10 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 38,757 m2\n3. B-09 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 16,268 m2\n4. B-08 | Destroyed | night, residential | unsearched | no team | why: Block footprint 8,317 m2\n5. B-03 | Destroyed | night, residential | unsearched | no team | why: Block footprint 7,272 m2\nSIGNS OF LIFE: none detected yet (no signal is not the same as nobody)\nTeams deployed 1/3 | survivors confirmed 0 | no signal after 2 scans 0\nNEEDS YOUR ACK: dispatch Team T2 to B-10 (reply \"ack B-10\")\nNEEDS YOUR ACK: dispatch Team T3 to B-09 (reply \"ack B-09\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
+ "people_text": "No signs of life detected yet. No signal does not mean nobody.\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
+ "heartbeat_text": "HEARTBEAT_OK",
+ "compute_seconds": 0.0002
+}
