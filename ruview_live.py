@@ -25,6 +25,7 @@ from v1.src.sensing.feature_extractor import RssiFeatureExtractor  # noqa: E402
 from v1.src.sensing.rssi_collector import WifiSample  # noqa: E402
 
 OUT = Path(__file__).parent / "data" / "live_sensor.json"
+CALIB = Path(__file__).parent / "data" / "live_threshold.json"   # written by the dashboard calibration
 RATE_HZ = 10
 WINDOW_S = 10
 # RSSI variance sees MOVEMENT, not people: four people sitting still next to the GB10 gave
@@ -81,13 +82,18 @@ def main():
                     chains = [deque(maxlen=RATE_HZ * 60) for _ in vals]
                 for buf, v, i in zip(chains, vals, range(len(vals))):
                     buf.append(sample(v, a.iface, i))
-            if chains and time.time() - last_write >= 1 and len(chains[0]) >= RATE_HZ * 4:
+            if chains and time.time() - last_write >= 0.5 and len(chains[0]) >= RATE_HZ * 4:
+                thresh = json.loads(CALIB.read_text())["threshold"] if CALIB.exists() else VAR_THRESH
+                classifier = PresenceClassifier(presence_variance_threshold=thresh)
                 results = [classifier.classify(extractor.extract(list(buf))) for buf in chains]
                 best = max(results, key=lambda r: r.rssi_variance)
                 moving = any(r.presence_detected for r in results)
                 write_atomic({"source": "ruview-rssi-live", "interface": a.iface, "time": time.time(),
                               "presence": moving, "motion_level": best.motion_level.value if moving else "absent",
-                              "threshold": VAR_THRESH, "confidence": round(float(best.confidence), 2),
+                              "threshold": thresh, "calibrated": CALIB.exists(),
+                              "confidence": round(float(best.confidence), 2),
+                              "trace": [[round(x.timestamp, 1), x.rssi_dbm] for x in list(chains[0])[-150:]],
+                              "trace2": [x.rssi_dbm for x in list(chains[1])[-150:]] if len(chains) > 1 else [],
                               "rssi_dbm": [buf[-1].rssi_dbm for buf in chains],
                               "rssi_variance": round(float(best.rssi_variance), 3),
                               "per_antenna_variance": [round(float(r.rssi_variance), 3) for r in results],

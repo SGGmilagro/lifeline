@@ -37,6 +37,21 @@
                background:rgba(20,25,34,.92); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:12px; }
   #imgtoggle[hidden] { display:none; }
   #imgtoggle button.on { background:#1f6feb; border-color:#1f6feb; }
+  #swipe { position:absolute; inset:0; width:100%; height:100%; margin:0; z-index:950; opacity:0; cursor:ew-resize; pointer-events:none; }
+  #swipe[hidden], #swipeline[hidden], #swipelbl[hidden] { display:none; }
+  #swipeline { position:absolute; top:0; bottom:0; width:4px; margin-left:-2px; background:#fff; z-index:940;
+               box-shadow:0 0 10px #000; pointer-events:auto; cursor:ew-resize; }
+  #swipeline::after { content:'⇆'; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); background:#fff;
+                      color:#0b0e13; font-weight:800; border-radius:50%; width:34px; height:34px; line-height:34px; text-align:center; }
+  #swipelbl { position:absolute; top:60px; left:10px; right:10px; z-index:940; display:flex; justify-content:space-between;
+              pointer-events:none; font-weight:800; letter-spacing:.1em; text-shadow:0 0 4px #000, 0 0 4px #000; }
+  #scope { position:absolute; right:10px; bottom:34px; z-index:1000; width:min(540px, calc(100% - 20px));
+           background:rgba(11,14,19,.94); border:2px solid var(--line); border-radius:10px; padding:8px 10px; }
+  #scope[hidden] { display:none; }
+  #scope.moving { border-color:var(--survivor); box-shadow:0 0 24px rgba(63,185,80,.5); }
+  #scope canvas { width:100%; height:150px; display:block; margin:4px 0; }
+  .scopehead { display:flex; justify-content:space-between; font-size:12px; letter-spacing:.06em; }
+  #scopestate.on { color:var(--survivor); font-weight:800; }
   #help { position:absolute; left:10px; bottom:34px; z-index:1000; max-width:340px; font-size:12px; line-height:1.45;
           background:rgba(20,25,34,.92); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--muted); }
   #help b { display:block; color:var(--ink); margin-bottom:2px; }
@@ -104,8 +119,14 @@
 <main>
   <div id="mapwrap"><div id="map"></div>
     <div id="imgtoggle" hidden><span class="muted">Satellite</span>
-      <button id="btnBefore" onclick="showLayer('before')">Before</button><button id="btnAfter" onclick="showLayer('after')">After</button>
+      <button id="btnBefore" onclick="showLayer('before')">Before</button><button id="btnSwipe" onclick="startSwipe()">Swipe ⇆</button><button id="btnAfter" onclick="showLayer('after')">After</button>
       <span id="imgdate" class="muted"></span></div>
+    <input id="swipe" type="range" min="0" max="100" value="50" hidden aria-label="Swipe between before and after">
+    <div id="swipeline" hidden></div><div id="swipelbl" hidden><span>BEFORE</span><span>AFTER</span></div>
+    <div id="scope" hidden><div class="scopehead"><b>LIVE WiFi RADAR</b> <span id="scopestate">–</span></div>
+      <canvas id="scopecv" width="520" height="150"></canvas>
+      <div class="muted" style="font-size:11px">Real signal of this GB10's two WiFi antennas, last 15 s. A person moving
+        through the room bends the radio waves; RuView's classifier turns that into "movement".</div></div>
     <div id="help"><b>How to read this map</b> Each dot is a building graded from satellite photos.
       Red = destroyed, amber = damaged, grey = possibly damaged. Green pulsing = someone alive.
       White labels = rescue teams. Click a building for its satellite photos.</div>
@@ -164,7 +185,43 @@ function setToggle() {
   $('btnBefore').classList.toggle('on', imgLayer === 'before'); $('btnAfter').classList.toggle('on', imgLayer === 'after');
   if (tilesMeta) $('imgdate').textContent = imgLayer === 'before' ? tilesMeta.before_date : tilesMeta.after_date;
 }
+let beforeLayer = null, swipeOn = false, swipePct = 50;
+function clipBefore() {
+  if (!beforeLayer || !swipeOn) return;
+  const size = map.getSize(), nw = map.containerPointToLayerPoint([0, 0]), se = map.containerPointToLayerPoint(size);
+  const x = nw.x + size.x * swipePct / 100;
+  beforeLayer.getContainer().style.clip = `rect(${nw.y}px, ${x}px, ${se.y}px, ${nw.x}px)`;
+  $('swipeline').style.left = swipePct + '%';
+}
+function startSwipe() {
+  if (!tilesMeta || !tilesMeta.before_date) return;
+  stopSwipe(); swipeOn = true; imgLayer = 'after';
+  overlay.setUrl(tilesMeta.url.replace('{layer}', 'after'));
+  beforeLayer = L.tileLayer(tilesMeta.url.replace('{layer}', 'before'), { minZoom:tilesMeta.minzoom,
+    maxNativeZoom:tilesMeta.maxzoom, maxZoom:20, bounds:tilesMeta.bounds }).addTo(map);
+  beforeLayer.on('load', clipBefore); clipBefore();
+  ['swipeline', 'swipelbl'].forEach(id => $(id).hidden = false);
+  $('btnSwipe').classList.add('on'); $('btnBefore').classList.remove('on'); $('btnAfter').classList.remove('on');
+  $('imgdate').textContent = tilesMeta.before_date + ' ⇆ ' + tilesMeta.after_date;
+}
+function stopSwipe() {
+  swipeOn = false; if (beforeLayer) { map.removeLayer(beforeLayer); beforeLayer = null; }
+  ['swipeline', 'swipelbl'].forEach(id => $(id).hidden = true); $('btnSwipe').classList.remove('on');
+}
+map.on('move zoom resize', clipBefore);
+(() => {   // drag the white line to wipe between before and after
+  let drag = false;
+  const at = e => { const r = $('mapwrap').getBoundingClientRect(), x = (e.touches ? e.touches[0].clientX : e.clientX);
+    swipePct = Math.max(0, Math.min(100, (x - r.left) / r.width * 100)); clipBefore(); };
+  $('swipeline').addEventListener('mousedown', e => { drag = true; map.dragging.disable(); e.preventDefault(); });
+  $('swipeline').addEventListener('touchstart', e => { drag = true; map.dragging.disable(); }, { passive:true });
+  window.addEventListener('mousemove', e => drag && at(e));
+  window.addEventListener('touchmove', e => drag && at(e), { passive:true });
+  const up = () => { if (drag) { drag = false; map.dragging.enable(); } };
+  window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
+})();
 function showLayer(which) {
+  stopSwipe();
   imgLayer = which; setToggle();
   if (overlay && tilesMeta) overlay.setUrl(tilesMeta.url.replace('{layer}', which));
 }
@@ -214,7 +271,8 @@ function render(d) {
       overlay.bringToBack();
       if (!d.tiles.before_date) imgLayer = 'after';
       overlay.setUrl(d.tiles.url.replace('{layer}', imgLayer));
-      $('imgtoggle').hidden = false; $('btnBefore').hidden = !d.tiles.before_date; setToggle();
+      stopSwipe();
+      $('imgtoggle').hidden = false; $('btnBefore').hidden = $('btnSwipe').hidden = !d.tiles.before_date; setToggle();
       $('imgattr').textContent = (d.tiles.attribution || 'Imagery © Maxar, CC BY-NC 4.0') + '. ';
     } else if (d.overlay_img) {
       overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
@@ -228,8 +286,9 @@ function render(d) {
   layers.clearLayers();
   for (const s of d.sites) {
     const surv = s.status.endsWith('survivor'), sel = s.id === selected;
-    if (s.outline) L.polygon(s.outline.map(p => [p[1], p[0]]), { color: surv ? css('--survivor') : '#58a6ff',
-      weight: 3, fillOpacity: surv ? .25 : .08, className: surv ? 'pulse' : '' }).on('click', () => select(s.id)).addTo(layers);
+    if (s.outline) { const hot = surv || (d.live && liveMoving);
+      L.polygon(s.outline.map(p => [p[1], p[0]]), { color: hot ? css('--survivor') : '#58a6ff',
+      weight: 3, fillOpacity: hot ? .3 : .08, className: hot ? 'pulse' : '' }).on('click', () => select(s.id)).addTo(layers); }
     L.circleMarker([s.lat, s.lon], {
       radius: sel ? 12 : surv ? 11 : 8, color: sel ? '#fff' : surv ? css('--survivor') : '#0b0e13',
       weight: sel ? 3 : 2, fillColor: color(s), fillOpacity:.95,
@@ -333,6 +392,41 @@ function liveHtml(l) {
     Counting and breathing need CSI sensors (about $9 ESP32-S3 per room).</div></div>`;
 }
 
+let liveMoving = false;
+async function pollScope() {
+  if (!last || !last.live) { $('scope').hidden = true; setTimeout(pollScope, 1500); return; }
+  try {
+    const l = await (await fetch('/livesignal')).json();
+    $('scope').hidden = false; $('help').hidden = true;
+    liveMoving = !!l.presence;
+    $('scope').classList.toggle('moving', liveMoving);
+    $('scopestate').className = liveMoving ? 'on' : '';
+    $('scopestate').textContent = liveMoving ? '● MOVEMENT DETECTED' : `still · alarm above ${l.threshold} dB²${l.calibrated ? ' (calibrated)' : ''}`;
+    drawScope(l);
+  } catch (e) { console.warn(e); }
+  setTimeout(pollScope, 400);
+}
+function drawScope(l) {
+  const cv = $('scopecv'), g = cv.getContext('2d'), W = cv.width, H = cv.height;
+  g.clearRect(0, 0, W, H);
+  const a = (l.trace || []).map(p => p[1]), b = l.trace2 || [];
+  const all = a.concat(b); if (!all.length) return;
+  const mid = all.reduce((x, y) => x + y, 0) / all.length, span = 6;     // +-6 dB around the mean
+  g.strokeStyle = '#2a3240'; g.lineWidth = 1;
+  for (let k = -1; k <= 1; k++) { const y = H / 2 - k * H / 4; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  const line = (arr, color) => {
+    if (arr.length < 2) return;
+    g.strokeStyle = color; g.lineWidth = 2.2; g.beginPath();
+    arr.forEach((v, i) => { const x = i / 149 * W, y = H / 2 - (v - mid) / span * (H / 2);
+      i ? g.lineTo(x, Math.max(2, Math.min(H - 2, y))) : g.moveTo(x, y); });
+    g.stroke();
+  };
+  line(a, liveMoving ? '#3fb950' : '#58a6ff');
+  line(b, liveMoving ? '#a5f3b5' : '#d29922');
+  g.fillStyle = '#8b949e'; g.font = '11px system-ui';
+  g.fillText('antenna 1', 6, 13); g.fillStyle = liveMoving ? '#a5f3b5' : '#d29922'; g.fillText('antenna 2', 70, 13);
+}
+
 async function startTest() { await post('/livetest'); pollTest(); }
 async function pollTest() {
   const t = await (await fetch('/livetest')).json();
@@ -340,7 +434,7 @@ async function pollTest() {
   if (t.state === 'running') {
     const last = t.samples && t.samples[t.samples.length - 1];
     b.hidden = false; b.className = t.phase === 'walk' ? 'walk' : '';
-    b.innerHTML = `${t.phase === 'walk' ? 'WALK NOW' : 'STAY STILL'} · ${t.remaining}s
+    b.innerHTML = `${t.phase === 'walk' ? 'WALK NOW' : t.samples && t.samples.length < 20 ? 'STAY STILL · calibrating' : 'STAY STILL'} · ${t.remaining}s
       <small>Live sensor says: ${last && last.moving ? '<b style="color:var(--survivor)">movement</b>' : 'no movement'}
       · signal change ${last ? last.variance : '–'} dB²</small>`;
     setTimeout(pollTest, 500);
@@ -362,6 +456,7 @@ async function pollProof() {
       ${l ? `<dl class="kv" style="margin-top:4px">
         <dt>Walking caught</dt><dd>${l.walk_detected_s}/${l.walk_window_s} s (${pct(l.detection_rate)})</dd>
         <dt>False alarms</dt><dd>${l.false_alarm_s}/${l.still_window_s} s still (${pct(l.false_alarm_rate)})</dd>
+        <dt>Calibrated</dt><dd>${l.threshold ?? '–'} dB² <span class="muted">${l.calibrated_on || 'not calibrated (old run)'}</span></dd>
         <dt>Reaction</dt><dd>${l.first_detection_after_walk_start_s ?? 'not detected'}${l.first_detection_after_walk_start_s != null ? ' s after walking started' : ''}</dd></dl>`
         : '<div class="muted">not run yet</div>'}
       <button style="margin-top:8px" onclick="startTest()">Run 60-second live test</button>`;
@@ -379,7 +474,7 @@ async function pollFeed() {
 }
 
 async function poll() { try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); } }
-loadRegions(); poll(); pollRuview(); pollFeed(); pollProof(); pollTest();
+loadRegions(); poll(); pollRuview(); pollFeed(); pollProof(); pollTest(); pollScope();
 setInterval(() => { if ($('testbanner').hidden) pollProof(); }, 15000);
 setInterval(poll, 2000); setInterval(pollRuview, 2000); setInterval(pollFeed, 3000);
 </script>

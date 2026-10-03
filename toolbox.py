@@ -135,6 +135,7 @@ def _livetest_run():
     import threading, time as _t
     def run():
         t0 = _t.time()
+        LIVETEST.clear()
         LIVETEST.update(state="running", started=t0, samples=[], result=None)
         end = t0 + sum(d for _, d in PHASES)
         while _t.time() < end:
@@ -148,10 +149,16 @@ def _livetest_run():
             live = _live() or {}
             LIVETEST["samples"].append({"t": round(el, 1), "phase": phase, "moving": bool(live.get("presence")),
                                         "variance": live.get("rssi_variance")})
+            if phase == "walk" and "threshold" not in LIVETEST:
+                # Calibrate: alarm level just above this room's own still-noise (max of the still phase x 1.3).
+                base = [x["variance"] for x in LIVETEST["samples"] if x["phase"] == "still" and x["variance"] is not None]
+                th = round(max(1.0, max(base[5:] or base) * 1.3), 2)
+                LIVETEST["threshold"] = th
+                (DATA / "live_threshold.json").write_text(json.dumps({"threshold": th, "time": _t.time()}))
             _t.sleep(1)
         sm = LIVETEST["samples"]
         walk = [x for x in sm if x["phase"] == "walk" and x["t"] >= 25]      # sensor window is 10 s: allow 5 s to react
-        still = [x for x in sm if x["phase"] == "still" and (x["t"] < 20 or x["t"] >= 50)]
+        still = [x for x in sm if x["phase"] == "still" and x["t"] >= 50]    # first 20 s were calibration
         hit = sum(x["moving"] for x in walk)
         fa = sum(x["moving"] for x in still)
         first = next((x["t"] for x in sm if x["phase"] == "walk" and x["moving"]), None)
@@ -160,7 +167,8 @@ def _livetest_run():
             "detection_rate": round(hit / len(walk), 2) if walk else None,
             "false_alarm_rate": round(fa / len(still), 2) if still else None,
             "first_detection_after_walk_start_s": round(first - 20, 1) if first is not None else None,
-            "sensor": "GB10 WiFi RSSI, 2 antennas, RuView classifier", "threshold": (_live() or {}).get("threshold")})
+            "sensor": "GB10 WiFi RSSI, 2 antennas, RuView classifier",
+            "threshold": LIVETEST.get("threshold"), "calibrated_on": "first 20 s, room still"})
         (DATA / "validation_live.json").write_text(json.dumps(LIVETEST, indent=1))
     threading.Thread(target=run, daemon=True).start()
 
@@ -185,6 +193,18 @@ def livetest():
                 break
             acc += d
     return out
+
+
+@app.get("/livesignal")
+def livesignal():
+    return _live() or {}
+
+
+@app.post("/calibrate")
+def calibrate():
+    """Clear the room calibration (back to the default threshold)."""
+    (DATA / "live_threshold.json").unlink(missing_ok=True)
+    return {"ok": True}
 
 
 @app.get("/proof")
