@@ -19,7 +19,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from engine import DATA, SENSORS_FILE, STATE_FILE, Engine
+from engine import CURRENT_REGION, DATA, REGIONS, SENSORS_FILE, STATE_FILE, Engine, region_list
 
 ROOT = Path(__file__).parent
 OLLAMA = "http://127.0.0.1:11434/api/generate"
@@ -45,8 +45,9 @@ async def lifespan(app):
 
 app = FastAPI(title="Lifeline toolbox", lifespan=lifespan)
 app.mount("/vendor", StaticFiles(directory=ROOT / "map" / "vendor"), name="vendor")
-(DATA / "img").mkdir(exist_ok=True)
-app.mount("/img", StaticFiles(directory=DATA / "img"), name="img")
+app.mount("/regions", StaticFiles(directory=REGIONS), name="regions")
+RUVIEW = "http://127.0.0.1:3000/api/v1"
+RUVIEW_TOKEN = ROOT / "ruview.token"
 
 
 @app.get("/")
@@ -56,13 +57,79 @@ def index():
 
 @app.get("/sites")
 def sites():
-    return {"source": "Copernicus EMS EMSR648 AOI04 grading (replay)",
+    return {"source": engine.meta["source"] + " (replay)", "region": engine.region_name,
             "sites": list(engine.sites.values())}
+
+
+@app.get("/regions")
+def regions():
+    return {"current": engine.region, "regions": region_list()}
+
+
+@app.post("/region")
+def set_region(name: str):
+    """Switch the whole incident to another pre-loaded region. Restarts the replay at 04:17."""
+    global engine
+    slug = name.strip().lower().replace("ş", "s").replace("ı", "i").replace("İ", "i")
+    known = {r["slug"]: r for r in region_list()}
+    if slug not in known:
+        return {"ok": False, "result": f"Unknown region {name}. Available: {', '.join(r['name'] for r in known.values())}"}
+    CURRENT_REGION.write_text(slug)
+    (DATA / "sensor_control.json").write_text("{}")   # survivor signals belong to the old region
+    new = Engine(speed=engine.speed, region=slug)
+    new.reset()
+    new._alert("region", None, f"Incident switched to {new.region_name}. Replay restarted at 04:17.")
+    new._save()
+    engine = new
+    return {"ok": True, "result": f"Now working on {new.region_name}: {len(new.sites)} sites ranked."}
+
+
+@app.get("/alerts")
+def alerts():
+    return {"alerts": engine.alert_log()}
+
+
+@app.get("/site")
+def site(site_id: str):
+    s = engine.sites.get(site_id.upper())
+    if not s:
+        raise HTTPException(404, f"unknown site {site_id}")
+    img = engine.region_dir / "img"
+    has = (img / f"before_{s['id']}.png").exists()
+    ov = json.loads((img / "overview.json").read_text()) if (img / "overview.json").exists() else {}
+    return {**s, "state": engine.state["sites"][s["id"]],
+            "before_img": f"/regions/{engine.region}/img/before_{s['id']}.png" if has else None,
+            "after_img": f"/regions/{engine.region}/img/after_{s['id']}.png" if has else None,
+            "before_date": ov.get("before_date"), "after_date": ov.get("after_date")}
+
+
+@app.get("/ruview")
+def ruview():
+    """Live RuView reading for the dashboard. The token stays on the host, never in the browser."""
+    try:
+        h = {"Authorization": f"Bearer {RUVIEW_TOKEN.read_text().strip()}"}
+        with httpx.Client(timeout=2) as c:
+            sl = c.get(f"{RUVIEW}/sensing/latest", headers=h).json()
+            vs = c.get(f"{RUVIEW}/vital-signs", headers=h).json()
+        cls = sl.get("classification", {})
+        return {"ok": True, "source": sl.get("source", "simulated"), "presence": cls.get("presence"),
+                "motion_level": cls.get("motion_level"), "confidence": cls.get("confidence"),
+                "estimated_persons": sl.get("estimated_persons"),
+                "breathing_bpm": vs.get("vital_signs", {}).get("breathing_rate_bpm"),
+                "vitals_status": vs.get("authority"), "vitals_note": vs.get("abstention_reason"),
+                "bound_site": next((sid for sid, v in _control().items() if v.get("ruview")), None)}
+    except Exception as e:
+        return {"ok": False, "error": type(e).__name__}
+
+
+def _control():
+    f = DATA / "sensor_control.json"
+    return json.loads(f.read_text()) if f.exists() else {}
 
 
 @app.get("/hazard")
 def hazard():
-    meta = json.loads((DATA / "sites.json").read_text())
+    meta = engine.meta
     return {"event": meta["event"], "source": meta["source"], "aoi_summary": meta["aoi_summary"],
             "hours_since_collapse": round(engine.hours_since_collapse(), 1),
             "replay_clock": engine.replay_clock()}
@@ -80,7 +147,8 @@ async def assess(site_id: str):
     s = engine.sites.get(site_id.upper())
     if not s:
         raise HTTPException(404, f"unknown site {site_id}")
-    before, after = DATA / "img" / f"before_{s['id']}.png", DATA / "img" / f"after_{s['id']}.png"
+    img = engine.region_dir / "img"
+    before, after = img / f"before_{s['id']}.png", img / f"after_{s['id']}.png"
     base = {"site_id": s["id"], "copernicus_grade": s["grade_label"]}
     if before.exists() and after.exists():
         imgs = [base64.b64encode(p.read_bytes()).decode() for p in (before, after)]
@@ -107,7 +175,7 @@ def brief():
 @app.get("/map")
 def map_view():
     out = engine.map_view()
-    ov = DATA / "img" / "overview.json"
+    ov = engine.region_dir / "img" / "overview.json"
     if ov.exists():                     # Maxar post-event overlay, served locally
         o = json.loads(ov.read_text())
         out.update(bounds=o["bounds"], overlay_img=o["image"])

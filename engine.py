@@ -22,7 +22,26 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 DATA = Path(__file__).parent / "data"
-SITES_FILE = DATA / "sites.json"
+REGIONS = DATA / "regions"
+CURRENT_REGION = DATA / "current_region"
+DEFAULT_REGION = "kahramanmaras"
+
+
+def current_region():
+    return CURRENT_REGION.read_text().strip() if CURRENT_REGION.exists() else DEFAULT_REGION
+
+
+def region_list():
+    out = []
+    for d in sorted(REGIONS.iterdir()):
+        if (d / "sites.json").exists():
+            m = json.loads((d / "sites.json").read_text())
+            ov = d / "img" / "overview.json"
+            out.append({"slug": d.name, "name": m["region"], "sites": len(m["sites"]),
+                        "buildings_graded": m["aoi_summary"]["buildings_graded"],
+                        "destroyed": m["aoi_summary"]["by_grade"].get("Destroyed", 0),
+                        "imagery": ov.exists()})
+    return out
 SENSORS_FILE = DATA / "sensors.json"
 STATE_FILE = DATA / "state.json"
 
@@ -56,20 +75,26 @@ def write_atomic(path, obj):
 
 
 class Engine:
-    def __init__(self, speed=120):
+    def __init__(self, speed=120, region=None):
         self.lock = threading.Lock()
-        meta = json.loads(SITES_FILE.read_text())
+        self.region = region or current_region()
+        self.region_dir = REGIONS / self.region
+        meta = json.loads((self.region_dir / "sites.json").read_text())
+        self.meta = meta
+        self.region_name = meta["region"]
         self.event = meta["event"]
         self.sites = {s["id"]: s for s in meta["sites"]}
         lats = [s["lat"] for s in self.sites.values()]
         lons = [s["lon"] for s in self.sites.values()]
         self.staging = (sum(lats) / len(lats), sum(lons) / len(lons))
         self.speed = speed
-        self.state = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else self.fresh_state()
+        saved = json.loads(STATE_FILE.read_text()) if STATE_FILE.exists() else {}
+        self.state = saved if saved.get("region") == self.region else self.fresh_state()
 
     # ---------- state ----------
     def fresh_state(self):
         return {
+            "region": self.region,
             "start_real": time.time(), "speed": self.speed, "last_tick": 0, "next_alert": 1,
             "teams": {t: {"site": None, "lat": self.staging[0], "lon": self.staging[1]} for t in TEAMS},
             "sites": {sid: {"status": "unsearched", "team": None, "scans": 0, "detections": [],
@@ -109,7 +134,8 @@ class Engine:
         grade_w = GRADE_WEIGHT[s["grade"]]
         residential = s.get("building_use", "").lower().startswith("residential")
         use_f = 1.0 if residential else 0.3
-        size_f = min(1.0, max(0.3, math.sqrt(s.get("footprint_m2", 0) / 20000)))
+        fp = s.get("footprint_m2")
+        size_f = 0.5 if fp is None else min(1.0, max(0.3, math.sqrt(fp / 20000)))
         time_f = 0.5 ** (hours / 48)
         score = round(grade_w * use_f * size_f * time_f, 3)
         reasons = [f"Satellite grade {s['grade_label']} (Copernicus, not an inspection)"]
@@ -118,7 +144,7 @@ class Engine:
                            else "Non-residential, collapse at night: fewer people likely inside")
         else:
             reasons.append("Use unknown, assumed residential")
-        reasons.append(f"Block footprint {s.get('footprint_m2', 0):,} m2")
+        reasons.append(f"Block footprint {fp:,} m2" if fp is not None else "Footprint not mapped (point record)")
         return score, reasons
 
     def ranked(self):
@@ -341,6 +367,7 @@ class Engine:
                 "replay_clock": self.replay_clock(),
                 "hours_since_collapse": round(self.hours_since_collapse(), 1),
                 "event": self.event,
+                "region": self.region_name,
                 "counters": self.counters(),
                 "sites_ranked": sites,
                 "people": self.people(),
@@ -403,12 +430,13 @@ class Engine:
             what = f"Team {team} ready, needs your ack"
         else:
             what = "no team yet"
-        size = f"{self.sites[s['id']]['footprint_m2']:,} m² block"
+        fp = self.sites[s["id"]]["footprint_m2"]
+        size = f"{fp:,} m² block" if fp is not None else "building"
         return f"{s['priority']}. {s['id']} {s['grade_label']}, {size} · {what}"
 
     def _render_status(self, b):
         c = b["counters"]
-        L = [f"LIFELINE · {self._clock(b)}",
+        L = [f"LIFELINE · {self.region_name} · {self._clock(b)}",
              f"Teams out {c['teams_deployed']}/3 · Survivors {c['survivors_confirmed']} · Sites {c['sites_ranked']}",
              "", "WHERE TO DIG"]
         L += [self._site_line(s) for s in b["sites_ranked"][:5]]
@@ -432,10 +460,12 @@ class Engine:
         return "\n".join(L)
 
     def _render_heartbeat(self, b):
-        L = [f"LIFELINE ALERT · {self._clock(b)}"]
+        L = [f"LIFELINE ALERT · {self.region_name} · {self._clock(b)}"]
         by = {}
         for a in b["new_alerts"]:
             by.setdefault(a["type"], []).append(a)
+        for a in by.get("region", []):
+            L += ["", f"🗺️ Now working on {self.region_name}. Replay restarted at 04:17."]
         for a in by.get("escalation", []):
             d = a["data"]
             L += ["", f"🚨 URGENT {a['site_id']}: breathing dropped to {d['bpm']}/min (was {d['peak']}).",
@@ -469,11 +499,18 @@ class Engine:
         except Exception:
             return "no sensor feed"
 
+    def alert_log(self, limit=40):
+        """Everything the engine raised, newest first, with whether the agent has posted it."""
+        with self.lock:
+            return [{k: a.get(k) for k in ("id", "type", "site_id", "text", "delivered", "real_time")}
+                    for a in reversed(self.state["alerts"][-limit:])]
+
     def map_view(self):
         with self.lock:
             st = self.state
             prio = {r["id"]: r["priority"] for r in self.ranked()}
             return {
+                "region": self.region_name, "region_slug": self.region,
                 "replay_clock": self.replay_clock(),
                 "counters": self.counters(),
                 "sites": [{"id": sid, "lat": s["lat"], "lon": s["lon"], "status": st["sites"][sid]["status"],

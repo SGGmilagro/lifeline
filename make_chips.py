@@ -1,9 +1,13 @@
 """Build-time only: cut before/after satellite chips per site from Maxar Open Data COGs.
 
-Windowed HTTP range reads, no full downloads. Writes data/img/before_<id>.png,
-data/img/after_<id>.png and data/img/overview_after.png + data/img/overview.json.
+Windowed HTTP range reads, no full downloads. Per region writes into data/regions/<slug>/img/:
+before_<id>.png, after_<id>.png, overview_after.jpg and overview.json.
 Imagery (c) Maxar, CC BY-NC 4.0 (Maxar Open Data, Kahramanmaras-turkey-earthquake-23).
+
+    python make_chips.py --region malatya
+    python make_chips.py --all
 """
+import argparse
 import csv
 import json
 from pathlib import Path
@@ -14,21 +18,42 @@ from PIL import Image
 from rasterio.warp import transform
 from rasterio.windows import from_bounds
 
-DATA = Path("data")
-IMG = DATA / "img"
-TSV = DATA / "raw" / "maxar.tsv"
-QUADKEY = "031131233233"
-PRE_ID, POST_ID = "10300100D797E100", "10300100E291D100"   # 2022-07-26 and 2023-02-11
+REGIONS = Path("data/regions")
+TSV = Path("data/raw/maxar.tsv")
+QUAKE = "2023-02-06"
 HALF_M = 75          # 150 m chip around each site
 CHIP_PX = 320
 OVERVIEW_PX = 1600
 
 
-def cog_url(catalog_id):
-    for r in csv.DictReader(TSV.open(), delimiter="\t"):
-        if r["catalog_id"] == catalog_id and r["quadkey"] == QUADKEY:
-            return "/vsicurl/" + r["visual"]
-    raise SystemExit(f"{catalog_id} not in index")
+def pick_tiles(sites):
+    """Choose the tile footprint covering most sites, then the best pre and post image of it."""
+    rows = list(csv.DictReader(TSV.open(), delimiter="\t"))
+    scored = []
+    for r in rows:
+        epsg = f"EPSG:{r['proj:epsg']}"
+        xs, ys = transform("EPSG:4326", epsg, [s["lon"] for s in sites], [s["lat"] for s in sites])
+        x0, y0, x1, y1 = map(float, r["proj:bbox"].split(","))
+        r["_n"] = sum(x0 <= x <= x1 and y0 <= y <= y1 for x, y in zip(xs, ys))
+        if r["_n"]:
+            scored.append(r)
+    best = {}
+    for r in scored:   # coverage per (quadkey) needs both a pre and a post image
+        best.setdefault(r["quadkey"], []).append(r)
+    options = []
+    for qk, rs in best.items():
+        pre = [r for r in rs if r["datetime"][:10] < QUAKE]
+        post = [r for r in rs if r["datetime"][:10] >= QUAKE]
+        if pre and post:
+            # Prefer more data area, less cloud, more nadir; post as soon after the quake as possible.
+            p = max(pre, key=lambda r: (float(r["tile:data_area"]) - 5 * float(r["tile:clouds_percent"]), r["datetime"]))
+            q = min(post, key=lambda r: (float(r["tile:clouds_percent"]) > 5, -float(r["tile:data_area"]) // 5,
+                                         float(r["view:off_nadir"]), r["datetime"]))
+            options.append((rs[0]["_n"], p, q))
+    if not options:
+        return None
+    n, pre, post = max(options, key=lambda o: o[0])
+    return pre, post
 
 
 def read_box(src, x0, y0, x1, y1, px):
@@ -37,38 +62,50 @@ def read_box(src, x0, y0, x1, y1, px):
     return np.moveaxis(arr, 0, -1)
 
 
-def main():
-    IMG.mkdir(parents=True, exist_ok=True)
-    sites = json.loads((DATA / "sites.json").read_text())["sites"]
-    xs, ys = transform("EPSG:4326", "EPSG:32637", [s["lon"] for s in sites], [s["lat"] for s in sites])
+def make(region):
+    rdir = REGIONS / region
+    img = rdir / "img"
+    img.mkdir(parents=True, exist_ok=True)
+    sites = json.loads((rdir / "sites.json").read_text())["sites"]
+    tiles = pick_tiles(sites)
+    if not tiles:
+        print(f"{region}: no before/after Maxar pair covers these sites; map uses dark background")
+        return
+    pre_r, post_r = tiles
+    epsg = f"EPSG:{post_r['proj:epsg']}"
+    xs, ys = transform("EPSG:4326", epsg, [s["lon"] for s in sites], [s["lat"] for s in sites])
     env = rasterio.Env(GDAL_DISABLE_READDIR_ON_OPEN="EMPTY_DIR", CPL_VSIL_CURL_ALLOWED_EXTENSIONS=".tif")
-    with env, rasterio.open(cog_url(PRE_ID)) as pre, rasterio.open(cog_url(POST_ID)) as post:
+    with env, rasterio.open("/vsicurl/" + pre_r["visual"]) as pre, rasterio.open("/vsicurl/" + post_r["visual"]) as post:
         made = []
         for s, x, y in zip(sites, xs, ys):
             chips = [read_box(src, x - HALF_M, y - HALF_M, x + HALF_M, y + HALF_M, CHIP_PX) for src in (pre, post)]
             if any((c.max(axis=2) == 0).mean() > 0.5 for c in chips):
-                print(f"{s['id']}: outside imagery, skipped")
                 continue
-            Image.fromarray(chips[0]).save(IMG / f"before_{s['id']}.png")
-            Image.fromarray(chips[1]).save(IMG / f"after_{s['id']}.png")
+            Image.fromarray(chips[0]).save(img / f"before_{s['id']}.png")
+            Image.fromarray(chips[1]).save(img / f"after_{s['id']}.png")
             made.append(s["id"])
-        print(f"chips: {len(made)} sites {made}")
 
-        # One post-event overview around the covered sites, for the map overlay.
-        cx = [x for s, x in zip(sites, xs) if s["id"] in made]
-        cy = [y for s, y in zip(sites, ys) if s["id"] in made]
+        cx = [x for s, x in zip(sites, xs) if s["id"] in made] or list(xs)
+        cy = [y for s, y in zip(sites, ys) if s["id"] in made] or list(ys)
         pad = 250
-        x0, x1, y0, y1 = min(cx) - pad, max(cx) + pad, min(cy) - pad, max(cy) + pad
-        side = max(x1 - x0, y1 - y0)
-        x1, y1 = x0 + side, y0 + side
-        Image.fromarray(read_box(post, x0, y0, x1, y1, OVERVIEW_PX)).save(IMG / "overview_after.jpg", quality=85)
-        lons, lats = transform("EPSG:32637", "EPSG:4326", [x0, x1], [y0, y1])
-        (IMG / "overview.json").write_text(json.dumps({
+        x0, y0 = min(cx) - pad, min(cy) - pad
+        side = max(max(cx) - min(cx), max(cy) - min(cy)) + 2 * pad
+        Image.fromarray(read_box(post, x0, y0, x0 + side, y0 + side, OVERVIEW_PX)).save(
+            img / "overview_after.jpg", quality=85)
+        lons, lats = transform(epsg, "EPSG:4326", [x0, x0 + side], [y0, y0 + side])
+        (img / "overview.json").write_text(json.dumps({
             "bounds": [[lats[0], lons[0]], [lats[1], lons[1]]],
-            "image": "/img/overview_after.jpg", "date": "2023-02-11",
-            "attribution": "Imagery (c) Maxar, CC BY-NC 4.0"}))
-        print("overview written")
+            "image": f"/regions/{region}/img/overview_after.jpg",
+            "before_date": pre_r["datetime"][:10], "after_date": post_r["datetime"][:10],
+            "chips": made, "attribution": "Imagery (c) Maxar, CC BY-NC 4.0"}))
+    print(f"{region}: chips for {len(made)}/{len(sites)} sites, before {pre_r['datetime'][:10]}, "
+          f"after {post_r['datetime'][:10]}")
 
 
 if __name__ == "__main__":
-    main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--region")
+    ap.add_argument("--all", action="store_true")
+    a = ap.parse_args()
+    for r in (sorted(p.name for p in REGIONS.iterdir()) if a.all else [a.region]):
+        make(r)

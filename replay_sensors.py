@@ -17,7 +17,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 DATA = Path(__file__).parent / "data"
-SITES = DATA / "sites.json"
+CURRENT_REGION = DATA / "current_region"
+
+
+def site_ids():
+    region = CURRENT_REGION.read_text().strip() if CURRENT_REGION.exists() else "kahramanmaras"
+    return [s["id"] for s in json.loads((DATA / "regions" / region / "sites.json").read_text())["sites"]]
 OUT = DATA / "sensors.json"
 CONTROL = DATA / "sensor_control.json"
 TICK_S = 10
@@ -93,12 +98,11 @@ def make_readings(site_ids, control, now, tick):
 
 
 def run():
-    site_ids = [s["id"] for s in json.loads(SITES.read_text())["sites"]]
     tick = 0
-    print(f"replay sensors: {len(site_ids)} sites x 2 sensors, every {TICK_S} s -> {OUT}")
+    print(f"replay sensors: 2 sensors per site of the current region, every {TICK_S} s -> {OUT}")
     while True:
         tick += 1
-        write_atomic(OUT, make_readings(site_ids, load_control(), time.time(), tick))
+        write_atomic(OUT, make_readings(site_ids(), load_control(), time.time(), tick))
         time.sleep(TICK_S)
 
 

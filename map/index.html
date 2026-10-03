@@ -3,138 +3,282 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lifeline map</title>
+<title>Lifeline Command</title>
 <!-- Vendored Leaflet only. No basemap tiles, no CDN: this page works with the internet off. -->
 <link rel="stylesheet" href="/vendor/leaflet.css">
 <script src="/vendor/leaflet.js"></script>
 <style>
-  :root { --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
-          --destroyed:#f85149; --damaged:#d29922; --possible:#8b949e; --survivor:#3fb950;
-          --nosignal:#58a6ff; --team:#e6edf3; }
+  :root { --bg:#0b0e13; --panel:#141922; --panel2:#1b2230; --ink:#e6edf3; --muted:#8b949e; --line:#2a3240;
+          --destroyed:#f85149; --damaged:#d29922; --possible:#8b949e; --survivor:#3fb950; --urgent:#ff7b72;
+          --nosignal:#58a6ff; --accent:#58a6ff; }
+  * { box-sizing:border-box; }
   html, body { height:100%; margin:0; background:var(--bg); color:var(--ink);
                font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
-  #bar { display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; padding:10px 16px;
-         background:var(--panel); border-bottom:1px solid var(--line); }
-  #bar .brand { font-weight:700; letter-spacing:.06em; }
-  .stat { display:flex; flex-direction:column; }
-  .stat b { font-size:22px; font-variant-numeric:tabular-nums; line-height:1.1; }
-  .stat span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
-  .badge { padding:4px 8px; border:1px solid var(--damaged); color:var(--damaged); border-radius:4px;
-           font-size:12px; font-weight:700; letter-spacing:.05em; }
-  .badge.local { border-color:var(--survivor); color:var(--survivor); }
   body { display:flex; flex-direction:column; }
-  #wrap { display:flex; flex:1; min-height:0; }
-  #map { flex:1; background:#05070a; }
-  #side { width:340px; max-width:40vw; overflow:auto; background:var(--panel); border-left:1px solid var(--line);
-          padding:10px 12px; }
-  #side h3 { margin:8px 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
-  .row { display:flex; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:13px; }
-  .row .p { width:22px; color:var(--muted); font-variant-numeric:tabular-nums; }
-  .row .id { width:44px; font-weight:600; }
+  header { display:flex; flex-wrap:wrap; gap:10px 22px; align-items:center; padding:10px 16px;
+           background:var(--panel); border-bottom:1px solid var(--line); }
+  .brand { font-weight:800; letter-spacing:.08em; }
+  .brand small { display:block; font-weight:500; letter-spacing:0; color:var(--muted); font-size:11px; }
+  select, button { font:inherit; color:var(--ink); background:var(--panel2); border:1px solid var(--line);
+                   border-radius:6px; padding:5px 9px; cursor:pointer; }
+  button:hover, select:hover { border-color:var(--accent); }
+  button.go { background:#1f6feb; border-color:#1f6feb; font-weight:600; }
+  .stat { display:flex; flex-direction:column; min-width:70px; }
+  .stat b { font-size:21px; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat span { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; }
+  .badges { display:flex; gap:6px; flex-wrap:wrap; margin-left:auto; }
+  .badge { padding:3px 8px; border:1px solid var(--damaged); color:var(--damaged); border-radius:4px;
+           font-size:11px; font-weight:700; letter-spacing:.05em; }
+  .badge.ok { border-color:var(--survivor); color:var(--survivor); }
+  main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 380px; }
+  #map { background:#05070a; min-height:300px; }
+  aside { overflow:auto; background:var(--panel); border-left:1px solid var(--line); padding:10px 12px 40px; }
+  section { margin-bottom:14px; }
+  h3 { margin:6px 0 6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;
+       display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  h3 .note { text-transform:none; letter-spacing:0; font-weight:400; }
+  .card { background:var(--panel2); border:1px solid var(--line); border-radius:8px; padding:9px 10px; }
+  .row { display:flex; gap:8px; align-items:center; padding:5px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .row:last-child { border-bottom:0; }
+  .row .p { width:20px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .row .id { width:42px; font-weight:700; }
   .row .st { flex:1; color:var(--muted); }
-  .ack { color:var(--damaged); font-weight:600; }
+  .clickable { cursor:pointer; } .clickable:hover { background:#202838; }
+  .dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .decision { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:6px 0;
+              border-bottom:1px solid var(--line); }
+  .decision:last-child { border-bottom:0; }
+  .decision span { color:var(--damaged); font-weight:600; }
+  .muted { color:var(--muted); }
+  .imgs { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:8px 0; }
+  .imgs figure { margin:0; } .imgs img { width:100%; aspect-ratio:1; object-fit:cover; border-radius:4px; display:block; }
+  .imgs figcaption { font-size:11px; color:var(--muted); margin-top:2px; }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:2px 10px; font-size:12.5px; margin:0; }
+  .kv dt { color:var(--muted); } .kv dd { margin:0; }
+  .ai { margin-top:6px; font-size:12.5px; border-left:3px solid var(--accent); padding:4px 8px; background:#111722; }
+  .meter { height:6px; background:#0b0e13; border-radius:3px; overflow:hidden; margin-top:3px; }
+  .meter i { display:block; height:100%; background:var(--survivor); }
+  .feed .item { padding:6px 0; border-bottom:1px solid var(--line); font-size:12.5px; }
+  .feed .item:last-child { border-bottom:0; }
+  .feed .meta { font-size:11px; color:var(--muted); }
+  .posted { color:var(--survivor); } .pending { color:var(--damaged); }
   #attr { position:fixed; left:8px; bottom:6px; z-index:1000; font-size:11px; color:var(--muted);
-          background:rgba(14,17,22,.8); padding:3px 6px; border-radius:3px; }
+          background:rgba(11,14,19,.85); padding:3px 6px; border-radius:3px; max-width:calc(100% - 16px); }
   .leaflet-container { background:#05070a; }
   .pulse { animation:pulse 1.2s ease-out infinite; }
-  @keyframes pulse { 0% { stroke-width:2; stroke-opacity:1; } 100% { stroke-width:26; stroke-opacity:0; } }
-  .team { background:var(--team); color:#0e1116; font-weight:800; font-size:11px; border-radius:3px;
-          text-align:center; line-height:18px; box-shadow:0 0 0 2px #0e1116; }
-  .lbl { color:var(--ink); font-size:11px; font-weight:600; text-shadow:0 0 3px #000; white-space:nowrap; }
-  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 4px 0 10px; }
-  @media (max-width:700px) { #wrap { flex-direction:column; } #side { width:auto; max-width:none; height:38%; } }
+  @keyframes pulse { 0% { stroke-width:2; stroke-opacity:1; } 100% { stroke-width:28; stroke-opacity:0; } }
+  .team { background:#e6edf3; color:#0b0e13; font-weight:800; font-size:11px; border-radius:3px;
+          text-align:center; line-height:18px; box-shadow:0 0 0 2px #0b0e13; }
+  .lbl { color:var(--ink); font-size:11px; font-weight:700; text-shadow:0 0 3px #000, 0 0 3px #000; white-space:nowrap; }
+  .legend { font-size:11.5px; color:var(--muted); display:flex; flex-wrap:wrap; gap:4px 12px; margin-bottom:6px; }
+  .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin-right:4px; vertical-align:-1px; }
+  @media (max-width:900px) { main { grid-template-columns:1fr; grid-template-rows:55vh auto; }
+                             aside { border-left:0; border-top:1px solid var(--line); } .badges { margin-left:0; } }
 </style>
 </head>
 <body>
-<div id="bar">
-  <div class="brand">LIFELINE · Kahramanmaraş</div>
+<header>
+  <div class="brand">LIFELINE COMMAND<small>Earthquake 6 Feb 2023 · replay</small></div>
+  <select id="region" title="Incident region"></select>
   <div class="stat"><b id="clock">–</b><span>replay clock</span></div>
-  <div class="stat"><b id="hours">–</b><span>hours since 04:17</span></div>
+  <div class="stat"><b id="hours">–</b><span>hours after quake</span></div>
   <div class="stat"><b id="ranked">–</b><span>sites ranked</span></div>
-  <div class="stat"><b id="teams">–</b><span>teams deployed</span></div>
-  <div class="stat"><b id="surv">–</b><span>survivors confirmed</span></div>
+  <div class="stat"><b id="teams">–</b><span>teams out</span></div>
+  <div class="stat"><b id="surv">–</b><span>survivors</span></div>
   <div class="stat"><b>40 h</b><span>first official map, 2023</span></div>
-  <div class="badge">SENSORS SIMULATED</div>
-  <div class="badge local">ALL INFERENCE ON THIS GB10</div>
-</div>
-<div id="wrap">
+  <div class="badges"><span class="badge">SENSORS SIMULATED</span><span class="badge ok">ALL AI ON THIS GB10</span></div>
+</header>
+<main>
   <div id="map"></div>
-  <div id="side">
-    <div class="legend" style="font-size:12px;color:var(--muted)">
-      <span style="background:var(--destroyed)"></span>Destroyed<span style="background:var(--damaged)"></span>Damaged<span style="background:var(--possible)"></span>Possibly
-      <br><span style="background:var(--survivor)"></span>Survivor<span style="background:var(--nosignal)"></span>No signal after 2 scans
-    </div>
-    <h3>Awaiting commander ack</h3><div id="acks"></div>
-    <h3>Signs of life <span id="src"></span></h3><div id="people"></div>
-    <h3>Priority list</h3><div id="list"></div>
-  </div>
-</div>
+  <aside>
+    <section>
+      <h3>Your decisions <span class="note muted">same as replying in Telegram</span></h3>
+      <div class="card" id="decisions"></div>
+    </section>
+    <section>
+      <h3>Building <span id="siteid" class="note muted"></span></h3>
+      <div class="card" id="detail"><span class="muted">Click a building on the map or in the list.</span></div>
+    </section>
+    <section>
+      <h3>RuView WiFi sensing <a href="http://localhost:3000/ui/index.html" target="_blank" class="note muted">open RuView ↗</a></h3>
+      <div class="card" id="ruview"><span class="muted">connecting…</span></div>
+    </section>
+    <section>
+      <h3>Signs of life</h3>
+      <div class="card" id="people"></div>
+    </section>
+    <section>
+      <h3>Agent → Telegram</h3>
+      <div class="card feed" id="feed"></div>
+    </section>
+    <section>
+      <h3>Where to dig</h3>
+      <div class="legend">
+        <span><i style="background:var(--destroyed)"></i>Destroyed</span><span><i style="background:var(--damaged)"></i>Damaged</span>
+        <span><i style="background:var(--possible)"></i>Possibly damaged</span><span><i style="background:var(--survivor)"></i>Survivor</span>
+        <span><i style="background:var(--nosignal)"></i>No signal after 2 scans</span>
+      </div>
+      <div class="card" id="list"></div>
+    </section>
+  </aside>
+</main>
 <div id="attr">Damage grading: Copernicus EMS EMSR648, © European Union. <span id="imgattr"></span>Sensor data simulated. No signal ≠ nobody.</div>
 <script>
-const COLORS = { Destroyed:'--destroyed', Damaged:'--damaged', 'Possibly damaged':'--possible' };
+const $ = id => document.getElementById(id);
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const map = L.map('map', { zoomControl:true, attributionControl:false });
-let layers = L.layerGroup().addTo(map), fitted = false, overlay = null;
+const COLORS = { Destroyed:'--destroyed', Damaged:'--damaged', 'Possibly damaged':'--possible' };
+const STATUS = { unsearched:'no team yet', dispatched:'team searching', scanning:'team searching',
+  no_signal_2_scans:'no signal after 2 scans', possible_survivor:'possible survivor', confirmed_survivor:'survivor confirmed' };
+const map = L.map('map', { attributionControl:false });
+let layers = L.layerGroup().addTo(map), overlay = null, region = null, selected = null, last = null;
 
-function siteColor(s) {
+const post = url => fetch(url, { method:'POST' }).then(r => r.json());
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function color(s) {
   if (s.status.endsWith('survivor')) return css('--survivor');
   if (s.status === 'no_signal_2_scans') return css('--nosignal');
   return css(COLORS[s.grade_label] || '--possible');
 }
 
-function render(d) {
-  const c = d.counters;
-  clock.textContent = d.replay_clock.replace(' local', '').slice(5);
-  hours.textContent = c.hours_since_collapse.toFixed(1);
-  ranked.textContent = c.sites_ranked;
-  teams.textContent = c.teams_deployed + '/3';
-  surv.textContent = c.survivors_confirmed;
-  src.textContent = '(sensor: ' + d.sensor_source + ')';
+async function loadRegions() {
+  const r = await (await fetch('/regions')).json();
+  $('region').innerHTML = r.regions.map(x =>
+    `<option value="${x.slug}" ${x.slug === r.current ? 'selected' : ''}>${esc(x.name)} · ${x.destroyed} destroyed${x.imagery ? '' : ' · no imagery'}</option>`).join('');
+}
+$('region').onchange = async e => {
+  $('region').disabled = true;
+  await post('/region?name=' + encodeURIComponent(e.target.value));
+  $('region').disabled = false; selected = null; $('siteid').textContent = '';
+  $('detail').innerHTML = '<span class="muted">Click a building on the map or in the list.</span>';
+  poll(); pollFeed();
+};
 
-  if (d.overlay_img && !overlay) {
-    overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.85 }).addTo(map);
-    imgattr.textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
-  }
-  if (!fitted) {
+function render(d) {
+  last = d;
+  const c = d.counters;
+  $('clock').textContent = d.replay_clock.replace(' local', '').slice(5);
+  $('hours').textContent = c.hours_since_collapse.toFixed(1);
+  $('ranked').textContent = c.sites_ranked;
+  $('teams').textContent = c.teams_deployed + '/3';
+  $('surv').textContent = c.survivors_confirmed;
+
+  if (d.region_slug !== region) {             // new region: re-fit and swap the satellite overlay
+    region = d.region_slug;
+    if (overlay) { map.removeLayer(overlay); overlay = null; }
+    if (d.overlay_img) {
+      overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
+      $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
+    } else $('imgattr').textContent = '';
     const b = L.latLngBounds(d.sites.map(s => [s.lat, s.lon]));
     if (d.bounds) b.extend(d.bounds);
-    map.fitBounds(b, { padding:[40,40] }); fitted = true;
+    map.fitBounds(b, { padding:[30,30] });
+    loadRegions();
   }
 
   layers.clearLayers();
   for (const s of d.sites) {
-    const surv = s.status.endsWith('survivor');
+    const surv = s.status.endsWith('survivor'), sel = s.id === selected;
     L.circleMarker([s.lat, s.lon], {
-      radius: surv ? 11 : 8, color: surv ? css('--survivor') : '#0e1116', weight: 2,
-      fillColor: siteColor(s), fillOpacity: .95,
+      radius: sel ? 12 : surv ? 11 : 8, color: sel ? '#fff' : surv ? css('--survivor') : '#0b0e13',
+      weight: sel ? 3 : 2, fillColor: color(s), fillOpacity:.95,
       className: s.status === 'confirmed_survivor' || s.escalated ? 'pulse' : ''
-    }).bindTooltip(`${s.id} · P${s.priority} · ${s.grade_label} · ${s.status}`).addTo(layers);
+    }).on('click', () => select(s.id))
+      .bindTooltip(`${s.id} · priority ${s.priority} · ${s.grade_label} · ${STATUS[s.status]}`).addTo(layers);
     L.marker([s.lat, s.lon], { interactive:false,
-      icon: L.divIcon({ className:'lbl', html:`${s.id}`, iconAnchor:[-10, 6] }) }).addTo(layers);
+      icon: L.divIcon({ className:'lbl', html:s.id, iconAnchor:[-10, 6] }) }).addTo(layers);
   }
-  for (const t of d.teams) {
-    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:t.id, iconSize:[22,18], iconAnchor:[11,26] }) })
+  for (const t of d.teams)
+    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:t.id, iconSize:[22,18], iconAnchor:[11,28] }) })
       .bindTooltip(t.site ? `Team ${t.id} at ${t.site}` : `Team ${t.id} free`).addTo(layers);
-  }
 
-  const bySite = Object.fromEntries(d.sites.map(s => [s.id, s]));
-  acks.innerHTML = d.awaiting_ack.length ? d.awaiting_ack.map(id => {
-    const s = bySite[id];
-    return `<div class="row ack">${s.proposed_team ? `Dispatch Team ${s.proposed_team} → ${id}` : `Survivor alert at ${id}`}</div>`;
-  }).join('') : '<div class="row st">none</div>';
-  people.innerHTML = d.people.length ? d.people.map(p =>
-    `<div class="row"><span class="id">${p.site_id}</span><span class="st">${p.breathing_bpm == null ? 'breathing n/a' : p.breathing_bpm + ' bpm'} · ${p.status.replace('_', ' ')}</span></div>`
-  ).join('') : '<div class="row st">none detected yet (no signal ≠ nobody)</div>';
-  list.innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
-    `<div class="row"><span class="p">${s.priority}</span><span class="id">${s.id}</span>` +
-    `<span class="st">${s.grade_label} · ${s.escalated ? 'ESCALATED · ' : ''}${s.status.replace(/_/g, ' ')}</span></div>`
-  ).join('');
+  const by = Object.fromEntries(d.sites.map(s => [s.id, s]));
+  $('decisions').innerHTML = d.awaiting_ack.length ? d.awaiting_ack.map(id => {
+    const s = by[id];
+    const what = s.proposed_team ? `Send Team ${s.proposed_team} → ${id}` :
+                 s.escalated ? `Send medical support → ${id}` : `Confirm survivor, start rescue → ${id}`;
+    return `<div class="decision"><span>${what}</span><button class="go" onclick="ack('${id}')">ack ${id}</button></div>`;
+  }).join('') + (d.awaiting_ack.length > 1 ? `<div class="decision"><span class="muted">All of the above</span><button onclick="ack('all')">ack all</button></div>` : '')
+    : '<span class="muted">Nothing waiting for you.</span>';
+
+  $('people').innerHTML = d.people.length ? d.people.map(p => {
+    const s = by[p.site_id];
+    const mark = s.escalated ? '🚨' : p.status === 'confirmed_survivor' ? '🟢' : '🟡';
+    return `<div class="row clickable" onclick="select('${p.site_id}')"><span>${mark}</span><span class="id">${p.site_id}</span>` +
+      `<span class="st">${p.breathing_bpm == null ? 'breathing not measured' : p.breathing_bpm + ' breaths/min'} · ${STATUS[p.status]}</span></div>`;
+  }).join('') : '<span class="muted">None detected yet. No signal does not mean nobody.</span>';
+
+  $('list').innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
+    `<div class="row clickable" onclick="select('${s.id}')"><span class="p">${s.priority}</span>` +
+    `<span class="dot" style="background:${color(s)}"></span><span class="id">${s.id}</span>` +
+    `<span class="st">${s.grade_label}${s.escalated ? ' · 🚨 weakening' : ' · ' + STATUS[s.status]}</span></div>`).join('');
+  if (selected) refreshDetail(false);
 }
 
-async function poll() {
-  try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); }
+async function ack(target) { await post('/ack?site=' + encodeURIComponent(target)); poll(); pollFeed(); }
+
+function select(id) { selected = id; $('siteid').textContent = id; refreshDetail(true); if (last) render(last); }
+
+async function refreshDetail(full) {
+  const s = await (await fetch('/site?site_id=' + selected)).json();
+  const st = s.state, pr = last && last.sites.find(x => x.id === s.id);
+  const facts = `<dl class="kv">
+      <dt>Priority</dt><dd>${pr ? pr.priority : '–'}</dd>
+      <dt>Damage</dt><dd>${esc(s.grade_label)} <span class="muted">(Copernicus, satellite)</span></dd>
+      <dt>Use</dt><dd>${esc(s.building_use)}</dd>
+      <dt>Footprint</dt><dd>${s.footprint_m2 == null ? 'not mapped' : s.footprint_m2.toLocaleString() + ' m²'}</dd>
+      <dt>Status</dt><dd>${STATUS[st.status]}${st.escalated ? ' · 🚨 weakening' : ''}</dd>
+      <dt>Team</dt><dd>${st.team ? 'Team ' + st.team : '–'}</dd>
+      <dt>Scans</dt><dd>${st.scans}</dd></dl>`;
+  if (!full && $('detail').querySelector('.kv')) { $('detail').querySelector('.kv').outerHTML = facts; return; }
+  const imgs = s.before_img ? `<div class="imgs">
+      <figure><img src="${s.before_img}" alt="Satellite image before the quake"><figcaption>Before · ${s.before_date}</figcaption></figure>
+      <figure><img src="${s.after_img}" alt="Satellite image after the quake"><figcaption>After · ${s.after_date}</figcaption></figure></div>
+      <button id="askai">Ask the local AI to compare</button><div id="aiout"></div>`
+    : '<p class="muted">No before/after satellite pair covers this building.</p>';
+  $('detail').innerHTML = facts + imgs;
+  if ($('askai')) $('askai').onclick = assess;
 }
-poll(); setInterval(poll, 2000);
+
+async function assess() {
+  $('aiout').innerHTML = '<div class="ai muted">qwen3.5 on this GB10 is looking at both images…</div>';
+  const t0 = performance.now();
+  const r = await (await fetch('/assess?site_id=' + selected)).json();
+  const secs = ((performance.now() - t0) / 1000).toFixed(1);
+  const lines = String(r.answer).split('\n').filter(Boolean);
+  $('aiout').innerHTML = `<div class="ai"><b>${esc(lines[0])}</b> ${esc(lines.slice(1).join(' '))}
+    <div class="muted" style="margin-top:4px">${esc(r.method)} · ${secs}s · Copernicus says ${esc(r.copernicus_grade)}${
+    r.agrees_with_copernicus === false ? ' · <b>disagrees</b>' : r.agrees_with_copernicus ? ' · agrees' : ''}</div></div>`;
+}
+
+async function pollRuview() {
+  try {
+    const r = await (await fetch('/ruview')).json();
+    if (!r.ok) { $('ruview').innerHTML = '<span class="muted">RuView not reachable (replay sensors still work).</span>'; return; }
+    const conf = Math.round((r.confidence || 0) * 100);
+    $('ruview').innerHTML = `<dl class="kv">
+      <dt>Source</dt><dd>${esc(r.source)} WiFi CSI</dd>
+      <dt>Presence</dt><dd>${r.presence ? 'yes' : 'no'} · ${esc((r.motion_level || '').replace('_', ' '))}</dd>
+      <dt>Persons</dt><dd>${r.estimated_persons ?? '–'}</dd>
+      <dt>Breathing</dt><dd>${r.breathing_bpm ?? '<span class="muted">abstained (needs calibration)</span>'}</dd>
+      <dt>Linked to</dt><dd>${r.bound_site ? 'sensor ' + r.bound_site + '-a' : '<span class="muted">no building yet</span>'}</dd>
+      <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>`;
+  } catch (e) { console.warn(e); }
+}
+
+async function pollFeed() {
+  try {
+    const r = await (await fetch('/alerts')).json();
+    $('feed').innerHTML = r.alerts.slice(0, 12).map(a => `<div class="item">${esc(a.text)}
+        <div class="meta">${new Date(a.real_time * 1000).toLocaleTimeString()} ·
+        ${a.delivered ? '<span class="posted">posted to Telegram ✓</span>' : '<span class="pending">waiting for next agent post</span>'}</div></div>`).join('')
+      || '<span class="muted">No alerts yet.</span>';
+  } catch (e) { console.warn(e); }
+}
+
+async function poll() { try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); } }
+loadRegions(); poll(); pollRuview(); pollFeed();
+setInterval(poll, 2000); setInterval(pollRuview, 2000); setInterval(pollFeed, 3000);
 </script>
 </body>
 </html>

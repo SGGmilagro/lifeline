@@ -9,3 +9,7 @@ data/sensor_control.json
 data/*.tmp
 demo/*.log
 ruview.env.token
+demo/out/
+demo/backup/
+demo/ffprof*
+demo/*.png

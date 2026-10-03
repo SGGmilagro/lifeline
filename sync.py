@@ -44,6 +44,11 @@ def apply_commands(c):
                 lines += [l.strip() for l in f.read_text().splitlines() if l.strip()]
     done = int(OFFSET.read_text()) if OFFSET.exists() else 0
     for line in lines[done:]:
+        g = re.fullmatch(r"(?i)(?:go|region)\s+([A-Za-zçğıöşüÇĞİÖŞÜ]+)", line.strip(" '\""))
+        if g:
+            r = c.post(f"{TOOLBOX}/region", params={"name": g.group(1)})
+            print(f"command 'go {g.group(1)}': {r.json()['result']}")
+            continue
         # Accept "ack B-07", "scan B-07", "ack all"; a bare "B-07"/"all" from the agent means ack.
         m = re.fullmatch(r"(?i)(ack|scan)?\s*(all|B-\d{2})", line.strip(" '\""))
         if not m or (m.group(1) or "ack").lower() == "scan" and m.group(2).lower() == "all":

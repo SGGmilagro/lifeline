@@ -1,9 +1,0 @@
-LIFELINE ALERT · 6 Feb 04:21 · 0.1h after quake
-
-👉 YOUR DECISION
-ack B-06 = send Team T1
-ack B-10 = send Team T2
-ack B-09 = send Team T3
-or reply: ack all
-
-Simulated sensors · Copernicus satellite damage data · runs only on this machine

@@ -23,6 +23,10 @@ delivered to the group automatically.
   Then reply exactly: "Ack recorded for B-07. Takes effect within 30 seconds." Do not say teams are moving; the next update confirms it.
 - "scan <site>": run this exec command: `echo "scan B-07" >> skills/lifeline/commands.txt`
   Then reply exactly: "Scan request for B-07 recorded. A dispatch proposal will follow for your ack."
+- "go <city>" (for example "go Malatya"): run this exec command with the city name:
+  `echo "go Malatya" >> skills/lifeline/commands.txt`
+  Then reply exactly: "Switching the incident to Malatya. New ranking within 30 seconds."
+  Available cities: Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep.
 - Any other question about a site, team or survivor: read `skills/lifeline/brief.json` and answer in one or two lines, quoting numbers exactly as written there.
 
 ## Rules (never break these)
