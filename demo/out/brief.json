@@ -1,7 +1,7 @@
 {
- "generated_utc": "2026-10-03T18:36:08+00:00",
- "replay_clock": "2023-02-06 05:49 local",
- "hours_since_collapse": 1.5,
+ "generated_utc": "2026-10-03T18:39:17+00:00",
+ "replay_clock": "2023-02-06 12:08 local",
+ "hours_since_collapse": 7.9,
  "event": "Kahramanmaras earthquake, 6 Feb 2023 04:17 local",
  "counters": {
   "sites_ranked": 16,
@@ -9,14 +9,14 @@
   "survivors_confirmed": 0,
   "possible_survivors": 0,
   "no_signal_2_scans": 0,
-  "hours_since_collapse": 1.5,
+  "hours_since_collapse": 7.9,
   "baseline_first_official_map_hours": 40
  },
  "sites_ranked": [
   {
    "id": "B-06",
    "priority": 1,
-   "score": 0.978,
+   "score": 0.893,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -32,7 +32,7 @@
   {
    "id": "B-10",
    "priority": 2,
-   "score": 0.978,
+   "score": 0.893,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -48,7 +48,7 @@
   {
    "id": "B-09",
    "priority": 3,
-   "score": 0.882,
+   "score": 0.805,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -64,7 +64,7 @@
   {
    "id": "B-08",
    "priority": 4,
-   "score": 0.631,
+   "score": 0.576,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -80,7 +80,7 @@
   {
    "id": "B-03",
    "priority": 5,
-   "score": 0.59,
+   "score": 0.538,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -96,7 +96,7 @@
   {
    "id": "B-01",
    "priority": 6,
-   "score": 0.558,
+   "score": 0.509,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -112,7 +112,7 @@
   {
    "id": "B-05",
    "priority": 7,
-   "score": 0.55,
+   "score": 0.502,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -128,7 +128,7 @@
   {
    "id": "B-04",
    "priority": 8,
-   "score": 0.481,
+   "score": 0.439,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -144,7 +144,7 @@
   {
    "id": "B-11",
    "priority": 9,
-   "score": 0.425,
+   "score": 0.388,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -160,7 +160,7 @@
   {
    "id": "B-13",
    "priority": 10,
-   "score": 0.399,
+   "score": 0.365,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -176,7 +176,7 @@
   {
    "id": "B-07",
    "priority": 11,
-   "score": 0.379,
+   "score": 0.346,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -192,7 +192,7 @@
   {
    "id": "B-12",
    "priority": 12,
-   "score": 0.369,
+   "score": 0.336,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -208,7 +208,7 @@
   {
    "id": "B-02",
    "priority": 13,
-   "score": 0.293,
+   "score": 0.268,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -224,7 +224,7 @@
   {
    "id": "B-14",
    "priority": 14,
-   "score": 0.187,
+   "score": 0.17,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -240,7 +240,7 @@
   {
    "id": "B-16",
    "priority": 15,
-   "score": 0.096,
+   "score": 0.088,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -256,7 +256,7 @@
   {
    "id": "B-15",
    "priority": 16,
-   "score": 0.09,
+   "score": 0.083,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -283,7 +283,7 @@
   "Sensors: simulated today (source: replay)",
   "All inference on this GB10"
  ],
- "status_text": "LIFELINE | Kahramanmaras | replay +1.5h since 04:17\nTOP SITES\n1. B-06 | Destroyed | night, residential | unsearched | Team T1 proposed | why: Block footprint 23,691 m2\n2. B-10 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 38,757 m2\n3. B-09 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 16,268 m2\n4. B-08 | Destroyed | night, residential | unsearched | no team | why: Block footprint 8,317 m2\n5. B-03 | Destroyed | night, residential | unsearched | no team | why: Block footprint 7,272 m2\nSIGNS OF LIFE: none detected yet (no signal is not the same as nobody)\nTeams deployed 0/3 | survivors confirmed 0 | no signal after 2 scans 0\nNEEDS YOUR ACK: dispatch Team T1 to B-06 (reply \"ack B-06\")\nNEEDS YOUR ACK: dispatch Team T2 to B-10 (reply \"ack B-10\")\nNEEDS YOUR ACK: dispatch Team T3 to B-09 (reply \"ack B-09\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
+ "status_text": "LIFELINE | Kahramanmaras | replay +7.9h since 04:17\nTOP SITES\n1. B-06 | Destroyed | night, residential | unsearched | Team T1 proposed | why: Block footprint 23,691 m2\n2. B-10 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 38,757 m2\n3. B-09 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 16,268 m2\n4. B-08 | Destroyed | night, residential | unsearched | no team | why: Block footprint 8,317 m2\n5. B-03 | Destroyed | night, residential | unsearched | no team | why: Block footprint 7,272 m2\nSIGNS OF LIFE: none detected yet (no signal is not the same as nobody)\nTeams deployed 0/3 | survivors confirmed 0 | no signal after 2 scans 0\nNEEDS YOUR ACK: dispatch Team T1 to B-06 (reply \"ack B-06\")\nNEEDS YOUR ACK: dispatch Team T2 to B-10 (reply \"ack B-10\")\nNEEDS YOUR ACK: dispatch Team T3 to B-09 (reply \"ack B-09\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
  "people_text": "No signs of life detected yet. No signal does not mean nobody.\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
  "heartbeat_text": "HEARTBEAT_OK",
  "compute_seconds": 0.0002
