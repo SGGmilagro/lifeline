@@ -55,6 +55,12 @@ def index():
     return FileResponse(ROOT / "map" / "index.html")
 
 
+@app.get("/app")
+def command_app():
+    """The Lifeline Command front end (designed as a Claude artifact), wired to this backend."""
+    return FileResponse(ROOT / "map" / "command.html")
+
+
 @app.get("/sites")
 def sites():
     return {"source": engine.meta["source"] + " (replay)", "region": engine.region_name,

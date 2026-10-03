@@ -683,6 +683,8 @@ class Engine:
                            "expected_occupants": occupancy(s, self.meta.get("live"))[0],
                            "priority": prio[sid], "grade_label": s["grade_label"],
                            "escalated": st["sites"][sid]["escalated"],
+                           "scans": st["sites"][sid]["scans"], "footprint_m2": s.get("footprint_m2"),
+                           "building_use": s.get("building_use"), "levels": s.get("levels"),
                            "proposed_team": st["proposals"].get(sid)} for sid, s in self.sites.items()],
                 "teams": [{"id": t, "lat": v["lat"], "lon": v["lon"], "site": v["site"],
                            "route": st.get("routes", {}).get(t, [])} for t, v in st["teams"].items()],
