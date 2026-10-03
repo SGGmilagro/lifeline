@@ -2,7 +2,8 @@
 
 Samples the real RSSI of the GB10's WiFi link with `iw` (5 Hz), then runs RuView's
 RssiFeatureExtractor + PresenceClassifier (RuView v1 commodity-WiFi pipeline) on it.
-RSSI-only sensing gives coarse presence and motion, never breathing. Writes data/live_sensor.json.
+RSSI-only sensing detects movement near the GB10. It cannot count people, cannot see people
+who are sitting still, and never measures breathing. Writes data/live_sensor.json.
 
     python ruview_live.py [--iface wlP9s9]
 """
@@ -24,8 +25,9 @@ from v1.src.sensing.rssi_collector import WifiSample  # noqa: E402
 OUT = Path(__file__).parent / "data" / "live_sensor.json"
 RATE_HZ = 5
 WINDOW_S = 10
-# RuView's default presence threshold (0.5 dB^2) is below this room's idle WiFi noise
-# (measured 0.9-1.3 dB^2 with nobody near), so we calibrate it for the venue.
+# RSSI variance sees MOVEMENT, not people: four people sitting still next to the GB10 gave
+# 0.9-1.4 dB^2. RuView's default threshold (0.5 dB^2) fires on that constantly, so we set the
+# alarm above it to mean "someone is moving nearby". Still people are not detected.
 VAR_THRESH = float(os.environ.get("LIFELINE_LIVE_VAR", "2.0"))
 
 

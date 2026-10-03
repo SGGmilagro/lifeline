@@ -298,9 +298,9 @@ async function pollRuview() {
     if (!r.ok) { $('ruview').innerHTML = '<span class="muted">RuView not reachable (replay sensors still work).</span>'; return; }
     const conf = Math.round((r.confidence || 0) * 100);
     $('ruview').innerHTML = `<dl class="kv">
-      <dt>Source</dt><dd>${esc(r.source)} WiFi CSI</dd>
+      <dt>Source</dt><dd><b>${esc(r.source)}</b> WiFi CSI <span class="muted">(demo data)</span></dd>
       <dt>Presence</dt><dd>${r.presence ? 'yes' : 'no'} · ${esc((r.motion_level || '').replace('_', ' '))}</dd>
-      <dt>Persons</dt><dd>${r.estimated_persons ?? '–'}</dd>
+      <dt>Persons</dt><dd>${r.estimated_persons ?? '–'} <span class="muted">(simulated data, not this room)</span></dd>
       <dt>Breathing</dt><dd>${r.breathing_bpm ?? '<span class="muted">abstained (needs calibration)</span>'}</dd>
       <dt>Linked to</dt><dd>${r.bound_site ? name(r.bound_site) : '<span class="muted">no building yet</span>'}</dd>
       <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>` + liveHtml(r.live);
@@ -312,12 +312,14 @@ function liveHtml(l) {
   const conf = Math.round((l.confidence || 0) * 100);
   return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">
     <b>Live WiFi · this room</b> <span class="muted">${l.fresh ? '● live' : 'stale'} · ${esc(l.interface)} · RSSI ${l.rssi_dbm} dBm</span>
-    <dl class="kv" style="margin-top:4px"><dt>Presence</dt><dd>${l.presence ? 'yes' : 'no'} · ${esc(l.motion_level)}</dd>
+    <dl class="kv" style="margin-top:4px"><dt>Movement nearby</dt><dd><b>${l.presence ? 'YES' : 'no'}</b></dd>
     <dt>Signal change</dt><dd>${l.rssi_variance} dB² <span class="muted">(alarm above ${l.threshold ?? '–'}; people moving change WiFi)</span>
       <div class="meter"><i style="width:${Math.min(100, 100 * l.rssi_variance / (2 * (l.threshold || 2)))}%;background:${l.presence ? 'var(--survivor)' : 'var(--nosignal)'}"></i></div></dd>
     <dt>Linked to</dt><dd>${l.bound_site ? name(l.bound_site) : '<span class="muted">no building</span>'}</dd>
     <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>
-    <div class="muted" style="font-size:11px">Real signal from this machine's WiFi, classified by RuView. Presence and motion only, no breathing.</div></div>`;
+    <div class="muted" style="font-size:11px">Real signal from this machine's WiFi, classified by RuView. It sees movement only:
+    it cannot count people, does not see people sitting still, and does not measure breathing.
+    Counting and breathing need CSI sensors (about $9 ESP32-S3 per room).</div></div>`;
 }
 
 async function pollFeed() {

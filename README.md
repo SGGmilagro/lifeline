@@ -50,8 +50,10 @@ Build: `python build_sites.py --all`, `python make_chips.py --all`, `python make
 
 `ruview_live.py` samples the GB10's own WiFi signal (`iw dev wlP9s9 link`, 5 Hz) and runs RuView's
 commodity-WiFi pipeline (RssiFeatureExtractor + PresenceClassifier from RuView v1) on it.
-RSSI gives presence and motion only, never breathing. RuView's default presence threshold
-(0.5 dB^2) is below this room's idle noise (0.9-1.3 dB^2), so we set `LIFELINE_LIVE_VAR=2.0`.
+RSSI detects movement near the GB10. It cannot count people, does not see people sitting
+still (four of us sitting next to it read 0.9-1.4 dB^2, "no movement"), and never measures
+breathing. RuView's default threshold (0.5 dB^2) fires constantly here, so `LIFELINE_LIVE_VAR=2.0`
+means "someone is moving nearby". Counting people and breathing needs CSI sensors (ESP32-S3).
 In the live region, Building 1 (our venue) reads this sensor; the team keeps scanning.
 
 ## Ranking (engine.py)

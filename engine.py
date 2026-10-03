@@ -411,7 +411,7 @@ class Engine:
             }
             out["status_text"] = friendly(self._render_status(out))
             out["people_text"] = friendly(self._render_people(out))
-            out["heartbeat_text"] = friendly(self._render_heartbeat(out)) if out["new_alerts"] else "HEARTBEAT_OK"
+            out["heartbeat_text"] = friendly(self._live_words(self._render_heartbeat(out))) if out["new_alerts"] else "HEARTBEAT_OK"
             out["help_text"] = HELP_TEXT
             out["compute_seconds"] = round(time.perf_counter() - t0, 4)
             return out
@@ -470,9 +470,9 @@ class Engine:
         if st["escalated"]:
             what = f"🚨 survivor weakening, Team {team} there"
         elif s["status"] == "confirmed_survivor":
-            what = f"🟢 survivor confirmed, Team {team} there"
+            what = f"🟢 {'movement confirmed' if self.meta.get('live') else 'survivor confirmed'}, Team {team} there"
         elif s["status"] == "possible_survivor":
-            what = f"🟡 possible survivor, Team {team} checking"
+            what = f"🟡 {'movement detected' if self.meta.get('live') else 'possible survivor'}, Team {team} checking"
         elif s["status"] in ("dispatched", "scanning"):
             what = f"Team {team} searching"
         elif s["status"] == "no_signal_2_scans":
@@ -509,6 +509,15 @@ class Engine:
                      f"{conf.capitalize()} ({self._src(p['source'])}).")
         L += ["", self.footer]
         return "\n".join(L)
+
+    def _live_words(self, text):
+        if not self.meta.get("live"):
+            return text
+        return (text.replace("🟢 SURVIVOR CONFIRMED at", "🟢 MOVEMENT CONFIRMED at")
+                    .replace("🟡 Possible survivor at", "🟡 Movement detected at")
+                    .replace("2 sensors agree", "seen in 2 scans 20 s apart")
+                    .replace("Breathing not measured", "Breathing not measured (WiFi signal strength cannot)")
+                    .replace("confirm survivor at", "confirm person at"))
 
     def _render_heartbeat(self, b):
         L = [f"LIFELINE ALERT · {self.region_name} · {self._clock(b)}"]
