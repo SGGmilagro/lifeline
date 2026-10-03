@@ -288,7 +288,7 @@ class Engine:
                 if hits:
                     self._detect(sid, ss, hits, now)
                 elif ss["status"] in ("dispatched", "scanning"):
-                    if ss["scans"] >= 2:
+                    if ss["scans"] >= 2 and not self.meta.get("live"):   # live drill: keep watching the room
                         team = ss["team"]
                         ss.update(status="no_signal_2_scans", team=None)
                         st["teams"][team]["site"] = None
