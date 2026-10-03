@@ -16,6 +16,7 @@ then sites with no signal after 2 scans. "No signal" never means "nobody".
 import json
 import math
 import os
+import re
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -52,6 +53,22 @@ CONFIRM_GAP_S = 20          # two scans this far apart also confirm
 ESCALATE_BPM = 10           # breathing below this escalates
 ESCALATE_DROP = 0.30        # or a drop of 30% ...
 ESCALATE_WINDOW_S = 120     # ... within 2 minutes
+HELP_TEXT = """👋 LIFELINE · earthquake rescue desk
+
+I rank collapsed buildings using satellite damage maps, track your 3 rescue teams, and alert you when sensors pick up someone alive. You decide every move.
+
+Send me:
+• status → where to dig now (top 5 buildings)
+• who is alive → people detected so far
+• ack 5 → approve what I proposed for Building 5
+• ack all → approve everything waiting
+• scan 7 → ask for a team at Building 7
+• go Malatya → switch city (Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep)
+
+🟢 survivor confirmed · 🟡 possible survivor · 🚨 getting weaker · ⚪ no signal yet (people may still be inside)
+
+Real satellite damage data (Copernicus) from the 6 Feb 2023 Turkey earthquake, replayed fast. Sensors simulated plus live WiFi. Everything runs on this machine."""
+
 STATUS_ORDER = {"confirmed_survivor": 1, "possible_survivor": 2, "unsearched": 3,
                 "dispatched": 3, "scanning": 3, "no_signal_2_scans": 4}
 
@@ -60,6 +77,19 @@ def dist_m(a, b):
     dy = (a[0] - b[0]) * 110540
     dx = (a[1] - b[1]) * 111320 * math.cos(math.radians(a[0]))
     return math.hypot(dx, dy)
+
+
+def norm_site(t):
+    """'5', 'b5', 'B-05', 'building 5' -> 'B-05'. Anything else passes through upper-cased."""
+    m = re.fullmatch(r"(?i)\s*(?:building\s*|b-?)?(\d{1,2})\s*", str(t))
+    return f"B-{int(m.group(1)):02d}" if m else str(t).strip().upper()
+
+
+def friendly(text):
+    """Plain words for first-time users: B-05 -> Building 5, Team T1 -> Team 1, ack B-05 -> ack 5."""
+    text = re.sub(r"\b(ack|scan) B-(\d{2})\b", lambda m: f"{m.group(1)} {int(m.group(2))}", text)
+    text = re.sub(r"\bB-(\d{2})\b", lambda m: f"Building {int(m.group(1))}", text)
+    return re.sub(r"\bTeam T(\d)\b", r"Team \1", text)
 
 
 def breath(p):
@@ -117,7 +147,7 @@ class Engine:
     def _alert(self, type_, site_id, text, **data):
         st = self.state
         st["alerts"].append({"id": st["next_alert"], "type": type_, "site_id": site_id, "data": data,
-                             "text": text, "delivered": False, "real_time": time.time()})
+                             "text": friendly(text), "delivered": False, "real_time": time.time()})
         st["next_alert"] += 1
 
     # ---------- clock ----------
@@ -186,7 +216,7 @@ class Engine:
         with self.lock:
             st = self.state
             targets = list(dict.fromkeys(list(st["proposals"]) + st["survivor_ack"])) \
-                if target.lower() == "all" else [target.upper()]
+                if target.lower() == "all" else [norm_site(target)]
             done = []
             for sid in targets:
                 if sid in st["proposals"]:
@@ -201,12 +231,12 @@ class Engine:
                     done.append(f"Survivor alert at {sid} acknowledged")
                     self._alert("ack_survivor", sid, f"Commander ack received for survivor alert at {sid}.")
             self._save()
-            return done or [f"Nothing awaiting ack for {target}"]
+            return [friendly(d) for d in done] or [f"Nothing waiting for your ack at {target}"]
 
     def request_scan(self, sid):
         """Commander asks for a site: propose the nearest team that is free or on a no-signal site."""
         with self.lock:
-            sid = sid.upper()
+            sid = norm_site(sid)
             st = self.state
             if sid not in st["sites"]:
                 return f"Unknown site {sid}"
@@ -379,11 +409,22 @@ class Engine:
                             f"Sensors: simulated today (source: {self._sensor_source()})",
                             "All inference on this GB10"],
             }
-            out["status_text"] = self._render_status(out)
-            out["people_text"] = self._render_people(out)
-            out["heartbeat_text"] = self._render_heartbeat(out) if out["new_alerts"] else "HEARTBEAT_OK"
+            out["status_text"] = friendly(self._render_status(out))
+            out["people_text"] = friendly(self._render_people(out))
+            out["heartbeat_text"] = friendly(self._render_heartbeat(out)) if out["new_alerts"] else "HEARTBEAT_OK"
+            out["help_text"] = HELP_TEXT
             out["compute_seconds"] = round(time.perf_counter() - t0, 4)
             return out
+
+    def kind(self, sid):
+        s = self.sites[sid]
+        if s.get("building_use", "").lower().startswith("residential"):
+            return "apartment block"
+        detail = (s.get("use_detail") or "").lower()
+        for word in ("school", "hospital", "industrial", "museum", "retail", "military"):
+            if word in detail:
+                return f"{word} building"
+        return "building"
 
     # Pre-rendered Telegram text, so every number the agent posts comes straight from the engine.
     # Written for a commander reading on a phone: short lines, one emoji per kind of event.
@@ -402,16 +443,16 @@ class Engine:
         L = []
         for sid in b["awaiting_ack"]:
             if sid in st["proposals"]:
-                L.append(f"ack {sid} = send Team {st['proposals'][sid]}")
+                L.append(f"ack {sid} → send Team {st['proposals'][sid]} to {sid}")
             elif st["sites"][sid]["escalated"]:
-                L.append(f"ack {sid} = send medical support")
+                L.append(f"ack {sid} → send medical support to {sid}")
             else:
-                L.append(f"ack {sid} = confirm survivor, start rescue")
+                L.append(f"ack {sid} → confirm survivor at {sid}, start rescue")
         if not L:
             return []
         if len(L) > 1:
-            L.append("or reply: ack all")
-        return ["", "👉 YOUR DECISION"] + L
+            L.append("ack all → approve everything above")
+        return ["", "👉 YOUR DECISION (reply with one line)"] + L
 
     def _site_line(self, s):
         st = self.state["sites"][s["id"]]
@@ -430,9 +471,7 @@ class Engine:
             what = f"Team {team} ready, needs your ack"
         else:
             what = "no team yet"
-        fp = self.sites[s["id"]]["footprint_m2"]
-        size = f"{fp:,} m² block" if fp is not None else "building"
-        return f"{s['priority']}. {s['id']} {s['grade_label']}, {size} · {what}"
+        return f"{s['priority']}. {s['id']} · {s['grade_label'].lower()} {self.kind(s['id'])} · {what}"
 
     def _render_status(self, b):
         c = b["counters"]
@@ -441,7 +480,7 @@ class Engine:
              "", "WHERE TO DIG"]
         L += [self._site_line(s) for s in b["sites_ranked"][:5]]
         L += self._decisions(b)
-        L += ["", self.FOOTER]
+        L += ["", "Send help for all commands.", self.FOOTER]
         return "\n".join(L)
 
     def _render_people(self, b):

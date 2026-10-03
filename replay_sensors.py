@@ -6,6 +6,7 @@ Control a running feed from another shell:
     python replay_sensors.py --trigger B-07 --bpm 14 --moving false
     python replay_sensors.py --decline B-07 --to 8 --over 60
     python replay_sensors.py --ruview B-06     # sensor a at B-06 reads RuView (simulated CSI)
+    python replay_sensors.py --live B-06       # sensor a at B-06 reads live WiFi in this room
     python replay_sensors.py --reset
 """
 import argparse
@@ -55,6 +56,18 @@ def ruview_reading():
             "source": "ruview-sim" if s.get("source", "simulated") in ("simulated", None) else "ruview"}
 
 
+LIVE = DATA / "live_sensor.json"
+
+
+def live_reading():
+    """Real WiFi RSSI in this room, classified by RuView (ruview_live.py). No breathing from RSSI."""
+    d = json.loads(LIVE.read_text())
+    if time.time() - d["time"] > 15:
+        raise RuntimeError("live sensor stale")
+    return {"presence": d["presence"], "moving": d["motion_level"] == "active",
+            "confidence": d["confidence"], "breathing_bpm": None, "source": "ruview-rssi-live"}
+
+
 def write_atomic(path, obj):
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(obj, indent=1))
@@ -84,7 +97,12 @@ def make_readings(site_ids, control, now, tick):
                  "breathing_bpm": None, "moving": False, "confidence": None,
                  "time": iso, "tick": tick, "source": "replay"}
             delay = 0 if s == "a" else SECOND_SENSOR_DELAY_S
-            if sig and sig.get("ruview") and s == "a":
+            if sig and sig.get("live") and s == "a":
+                try:
+                    r.update(live_reading())
+                except Exception as e:
+                    r["source"] = f"live-unavailable ({type(e).__name__})"
+            elif sig and sig.get("ruview") and s == "a":
                 try:
                     r.update(ruview_reading())
                 except Exception as e:
@@ -115,6 +133,7 @@ def main():
     ap.add_argument("--to", type=float, default=8)
     ap.add_argument("--over", type=float, default=60)
     ap.add_argument("--ruview", metavar="SITE")
+    ap.add_argument("--live", metavar="SITE", help="sensor a at SITE reads live WiFi in this room")
     ap.add_argument("--reset", action="store_true")
     a = ap.parse_args()
 
@@ -131,6 +150,11 @@ def main():
         c.setdefault(a.ruview, {"start": time.time(), "moving": False})["ruview"] = True
         write_atomic(CONTROL, c)
         print(f"sensor {a.ruview}-a now reads RuView (simulated CSI)")
+    elif a.live:
+        c = load_control()
+        c.setdefault(a.live, {"start": time.time(), "moving": False})["live"] = True
+        write_atomic(CONTROL, c)
+        print(f"sensor {a.live}-a now reads live WiFi in this room (RuView RSSI)")
     elif a.decline:
         c = load_control()
         sig = c.get(a.decline)

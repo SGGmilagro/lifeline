@@ -35,7 +35,7 @@ def nemoclaw(*args, timeout=60):
 
 SESSIONS = "/sandbox/.openclaw/agents/main/sessions"
 SEEN = ROOT / "data" / "commands_seen.json"
-CMD = re.compile(r"(?i)^\s*(?:@\w+\s+)?(ack|scan|go)\s+([A-Za-zçğıöşüÇĞİÖŞÜ]+|B-\d{2})\s*$")
+CMD = re.compile(r"(?i)^\s*(?:@\w+\s+)?(ack|scan|go)\s+(?:building\s*)?(all|[A-Za-zçğıöşüÇĞİÖŞÜ]{3,}|b-?\d{1,2}|\d{1,2})\s*$")
 
 
 def chat_commands():
@@ -72,12 +72,13 @@ def apply_commands(c):
         if not m:
             continue
         verb, arg = m.group(1).lower(), m.group(2)
-        if verb == "go":
+        is_site = arg.lower() == "all" or not arg.isalpha()
+        if verb == "go" and not is_site:
             r = c.post(f"{TOOLBOX}/region", params={"name": arg})
-        elif verb == "scan" and arg.lower() != "all":
-            r = c.post(f"{TOOLBOX}/scan", params={"site": arg})
-        elif verb == "ack":
+        elif verb == "ack" and is_site:
             r = c.post(f"{TOOLBOX}/ack", params={"site": arg})
+        elif verb == "scan" and is_site and arg.lower() != "all":
+            r = c.post(f"{TOOLBOX}/scan", params={"site": arg})
         else:
             continue
         print(f"chat command '{text}': {r.json()['result']}")
@@ -93,7 +94,8 @@ def main():
         (OUT / "status.txt").write_text(b["status_text"] + "\n")
         (OUT / "people.txt").write_text(b["people_text"] + "\n")
         (OUT / "alerts.txt").write_text(b["heartbeat_text"] + "\n")
-        for name in ("brief.json", "status.txt", "people.txt", "alerts.txt"):
+        (OUT / "help.txt").write_text(b["help_text"] + "\n")
+        for name in ("brief.json", "status.txt", "people.txt", "alerts.txt", "help.txt"):
             for d in (SKILL_DIR, ALT_DIR):
                 nemoclaw("upload", str(OUT / name), d)
         c_ = b["counters"]

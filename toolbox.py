@@ -117,9 +117,20 @@ def ruview():
                 "estimated_persons": sl.get("estimated_persons"),
                 "breathing_bpm": vs.get("vital_signs", {}).get("breathing_rate_bpm"),
                 "vitals_status": vs.get("authority"), "vitals_note": vs.get("abstention_reason"),
-                "bound_site": next((sid for sid, v in _control().items() if v.get("ruview")), None)}
+                "bound_site": next((sid for sid, v in _control().items() if v.get("ruview")), None),
+                "live": _live()}
     except Exception as e:
         return {"ok": False, "error": type(e).__name__}
+
+
+def _live():
+    f = DATA / "live_sensor.json"
+    if not f.exists():
+        return None
+    d = json.loads(f.read_text())
+    d["fresh"] = __import__("time").time() - d["time"] < 15
+    d["bound_site"] = next((sid for sid, v in _control().items() if v.get("live")), None)
+    return d
 
 
 def _control():
@@ -179,6 +190,9 @@ def map_view():
     if ov.exists():                     # Maxar post-event overlay, served locally
         o = json.loads(ov.read_text())
         out.update(bounds=o["bounds"], overlay_img=o["image"])
+    tj = engine.region_dir / "tiles" / "tiles.json"
+    if tj.exists():                     # zoomable before/after tiles, served locally
+        out["tiles"] = json.loads(tj.read_text())
     return out
 
 

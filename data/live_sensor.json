@@ -1,0 +1,1 @@
+{"source": "ruview-rssi-live", "interface": "wlP9s9", "time": 1791056769.3751335, "presence": true, "motion_level": "active", "confidence": 1.0, "rssi_dbm": -63.0, "rssi_variance": 1.896, "details": "var=1.8955 (thresh=0.5), motion_energy=10.7134 (thresh=0.1), breathing_energy=0.9305, change_points=1"}

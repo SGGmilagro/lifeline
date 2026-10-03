@@ -15,6 +15,8 @@ curl -s http://127.0.0.1:11434/api/generate -d '{"model":"qwen3.5:9b-128k","keep
 # RuView sensing server (simulated CSI), localhost-only, cloud registry and mDNS off. See README.
 docker start ruview >/dev/null 2>&1 || sg docker -c "docker start ruview" >/dev/null 2>&1 || echo "RuView not running (replay sensors still work)"
 
+# Live WiFi sensing in this room (RuView RSSI classifier on the GB10's own WiFi).
+nohup .venv/bin/python ruview_live.py > demo/live.log 2>&1 & echo $! > demo/live.pid
 nohup .venv/bin/python replay_sensors.py > demo/sensors.log 2>&1 & echo $! > demo/sensors.pid
 nohup .venv/bin/python toolbox.py --speed "${LIFELINE_SPEED:-120}" > demo/toolbox.log 2>&1 & echo $! > demo/toolbox.pid
 for i in $(seq 20); do curl -sf http://127.0.0.1:8090/map >/dev/null && break; sleep 0.5; done

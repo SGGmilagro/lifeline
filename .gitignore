@@ -13,3 +13,4 @@ demo/out/
 demo/backup/
 demo/ffprof*
 demo/*.png
+data/regions/*/tiles/

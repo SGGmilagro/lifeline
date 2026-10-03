@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stop the Lifeline processes started by start.sh.
 cd "$(dirname "$0")"
-for p in loop toolbox sensors; do
+for p in loop toolbox sensors live; do
   [ -f demo/$p.pid ] && kill "$(cat demo/$p.pid)" 2>/dev/null && echo "stopped $p"
   rm -f demo/$p.pid
 done

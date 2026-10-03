@@ -31,7 +31,15 @@
            font-size:11px; font-weight:700; letter-spacing:.05em; }
   .badge.ok { border-color:var(--survivor); color:var(--survivor); }
   main { flex:1; min-height:0; display:grid; grid-template-columns:minmax(0,1fr) 380px; }
-  #map { background:#05070a; min-height:300px; }
+  #mapwrap { position:relative; min-height:300px; }
+  #map { position:absolute; inset:0; background:#05070a; }
+  #imgtoggle { position:absolute; top:10px; right:10px; z-index:1000; display:flex; gap:6px; align-items:center;
+               background:rgba(20,25,34,.92); border:1px solid var(--line); border-radius:8px; padding:6px 8px; font-size:12px; }
+  #imgtoggle[hidden] { display:none; }
+  #imgtoggle button.on { background:#1f6feb; border-color:#1f6feb; }
+  #help { position:absolute; left:10px; bottom:34px; z-index:1000; max-width:340px; font-size:12px; line-height:1.45;
+          background:rgba(20,25,34,.92); border:1px solid var(--line); border-radius:8px; padding:8px 10px; color:var(--muted); }
+  #help b { display:block; color:var(--ink); margin-bottom:2px; }
   aside { overflow:auto; background:var(--panel); border-left:1px solid var(--line); padding:10px 12px 40px; }
   section { margin-bottom:14px; }
   h3 { margin:6px 0 6px; font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.07em;
@@ -89,10 +97,17 @@
   <div class="badges"><span class="badge">SENSORS SIMULATED</span><span class="badge ok">ALL AI ON THIS GB10</span></div>
 </header>
 <main>
-  <div id="map"></div>
+  <div id="mapwrap"><div id="map"></div>
+    <div id="imgtoggle" hidden><span class="muted">Satellite</span>
+      <button id="btnBefore" onclick="showLayer('before')">Before</button><button id="btnAfter" onclick="showLayer('after')">After</button>
+      <span id="imgdate" class="muted"></span></div>
+    <div id="help"><b>How to read this map</b> Each dot is a building graded from satellite photos.
+      Red = destroyed, amber = damaged, grey = possibly damaged. Green pulsing = someone alive.
+      White labels = rescue teams. Click a building for its satellite photos.</div>
+  </div>
   <aside>
     <section>
-      <h3>Your decisions <span class="note muted">same as replying in Telegram</span></h3>
+      <h3>Your decisions <span class="note muted">same as replying "ack" in Telegram</span></h3>
       <div class="card" id="decisions"></div>
     </section>
     <section>
@@ -100,7 +115,7 @@
       <div class="card" id="detail"><span class="muted">Click a building on the map or in the list.</span></div>
     </section>
     <section>
-      <h3>RuView WiFi sensing <a href="http://localhost:3000/ui/index.html" target="_blank" class="note muted">open RuView ↗</a></h3>
+      <h3>WiFi sensing (RuView) <a href="http://localhost:3000/ui/index.html" target="_blank" class="note muted">open RuView ↗</a></h3>
       <div class="card" id="ruview"><span class="muted">connecting…</span></div>
     </section>
     <section>
@@ -131,6 +146,17 @@ const STATUS = { unsearched:'no team yet', dispatched:'team searching', scanning
   no_signal_2_scans:'no signal after 2 scans', possible_survivor:'possible survivor', confirmed_survivor:'survivor confirmed' };
 const map = L.map('map', { attributionControl:false });
 let layers = L.layerGroup().addTo(map), overlay = null, region = null, selected = null, last = null;
+let imgLayer = 'after', tilesMeta = null;
+const name = id => 'Building ' + parseInt(id.slice(2), 10);
+const team = t => 'Team ' + t.slice(1);
+function setToggle() {
+  $('btnBefore').classList.toggle('on', imgLayer === 'before'); $('btnAfter').classList.toggle('on', imgLayer === 'after');
+  if (tilesMeta) $('imgdate').textContent = imgLayer === 'before' ? tilesMeta.before_date : tilesMeta.after_date;
+}
+function showLayer(which) {
+  imgLayer = which; setToggle();
+  if (overlay && tilesMeta) overlay.setUrl(tilesMeta.url.replace('{layer}', which));
+}
 
 const post = url => fetch(url, { method:'POST' }).then(r => r.json());
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -166,13 +192,19 @@ function render(d) {
   if (d.region_slug !== region) {             // new region: re-fit and swap the satellite overlay
     region = d.region_slug;
     if (overlay) { map.removeLayer(overlay); overlay = null; }
-    if (d.overlay_img) {
-      overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
+    if (d.tiles) {
+      tilesMeta = d.tiles;
+      overlay = L.tileLayer(d.tiles.url.replace('{layer}', imgLayer), { minZoom:d.tiles.minzoom, maxNativeZoom:d.tiles.maxzoom,
+        maxZoom:20, bounds:d.tiles.bounds, errorTileUrl:'' }).addTo(map);
+      overlay.bringToBack();
+      $('imgtoggle').hidden = false; setToggle();
       $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
-    } else $('imgattr').textContent = '';
-    const b = L.latLngBounds(d.sites.map(s => [s.lat, s.lon]));
-    if (d.bounds) b.extend(d.bounds);
-    map.fitBounds(b, { padding:[30,30] });
+    } else if (d.overlay_img) {
+      overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
+      $('imgtoggle').hidden = true;
+      $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
+    } else { $('imgtoggle').hidden = true; $('imgattr').textContent = ''; }
+    map.fitBounds(L.latLngBounds(d.sites.map(s => [s.lat, s.lon])), { padding:[60,60], maxZoom:17 });
     loadRegions();
   }
 
@@ -184,40 +216,40 @@ function render(d) {
       weight: sel ? 3 : 2, fillColor: color(s), fillOpacity:.95,
       className: s.status === 'confirmed_survivor' || s.escalated ? 'pulse' : ''
     }).on('click', () => select(s.id))
-      .bindTooltip(`${s.id} · priority ${s.priority} · ${s.grade_label} · ${STATUS[s.status]}`).addTo(layers);
+      .bindTooltip(`${name(s.id)} · priority ${s.priority} · ${s.grade_label} · ${STATUS[s.status]}`).addTo(layers);
     L.marker([s.lat, s.lon], { interactive:false,
-      icon: L.divIcon({ className:'lbl', html:s.id, iconAnchor:[-10, 6] }) }).addTo(layers);
+      icon: L.divIcon({ className:'lbl', html:String(parseInt(s.id.slice(2), 10)), iconAnchor:[-10, 6] }) }).addTo(layers);
   }
   for (const t of d.teams)
-    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:t.id, iconSize:[22,18], iconAnchor:[11,28] }) })
-      .bindTooltip(t.site ? `Team ${t.id} at ${t.site}` : `Team ${t.id} free`).addTo(layers);
+    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:team(t.id), iconSize:[52,18], iconAnchor:[26,28] }) })
+      .bindTooltip(t.site ? `${team(t.id)} at ${name(t.site)}` : `${team(t.id)} free`).addTo(layers);
 
   const by = Object.fromEntries(d.sites.map(s => [s.id, s]));
   $('decisions').innerHTML = d.awaiting_ack.length ? d.awaiting_ack.map(id => {
     const s = by[id];
-    const what = s.proposed_team ? `Send Team ${s.proposed_team} → ${id}` :
-                 s.escalated ? `Send medical support → ${id}` : `Confirm survivor, start rescue → ${id}`;
-    return `<div class="decision"><span>${what}</span><button class="go" onclick="ack('${id}')">ack ${id}</button></div>`;
-  }).join('') + (d.awaiting_ack.length > 1 ? `<div class="decision"><span class="muted">All of the above</span><button onclick="ack('all')">ack all</button></div>` : '')
+    const what = s.proposed_team ? `Send ${team(s.proposed_team)} → ${name(id)}` :
+                 s.escalated ? `Send medical support → ${name(id)}` : `Confirm survivor, start rescue → ${name(id)}`;
+    return `<div class="decision"><span>${what}</span><button class="go" onclick="ack('${id}')">Approve</button></div>`;
+  }).join('') + (d.awaiting_ack.length > 1 ? `<div class="decision"><span class="muted">All of the above</span><button onclick="ack('all')">Approve all</button></div>` : '')
     : '<span class="muted">Nothing waiting for you.</span>';
 
   $('people').innerHTML = d.people.length ? d.people.map(p => {
     const s = by[p.site_id];
     const mark = s.escalated ? '🚨' : p.status === 'confirmed_survivor' ? '🟢' : '🟡';
-    return `<div class="row clickable" onclick="select('${p.site_id}')"><span>${mark}</span><span class="id">${p.site_id}</span>` +
+    return `<div class="row clickable" onclick="select('${p.site_id}')"><span>${mark}</span><span class="id" style="width:auto">${name(p.site_id)}</span>` +
       `<span class="st">${p.breathing_bpm == null ? 'breathing not measured' : p.breathing_bpm + ' breaths/min'} · ${STATUS[p.status]}</span></div>`;
   }).join('') : '<span class="muted">None detected yet. No signal does not mean nobody.</span>';
 
   $('list').innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
     `<div class="row clickable" onclick="select('${s.id}')"><span class="p">${s.priority}</span>` +
-    `<span class="dot" style="background:${color(s)}"></span><span class="id">${s.id}</span>` +
+    `<span class="dot" style="background:${color(s)}"></span><span class="id" style="width:84px">${name(s.id)}</span>` +
     `<span class="st">${s.grade_label}${s.escalated ? ' · 🚨 weakening' : ' · ' + STATUS[s.status]}</span></div>`).join('');
   if (selected) refreshDetail(false);
 }
 
 async function ack(target) { await post('/ack?site=' + encodeURIComponent(target)); poll(); pollFeed(); }
 
-function select(id) { selected = id; $('siteid').textContent = id; refreshDetail(true); if (last) render(last); }
+function select(id) { selected = id; $('siteid').textContent = name(id); refreshDetail(true); if (last) render(last); }
 
 async function refreshDetail(full) {
   const s = await (await fetch('/site?site_id=' + selected)).json();
@@ -228,7 +260,7 @@ async function refreshDetail(full) {
       <dt>Use</dt><dd>${esc(s.building_use)}</dd>
       <dt>Footprint</dt><dd>${s.footprint_m2 == null ? 'not mapped' : s.footprint_m2.toLocaleString() + ' m²'}</dd>
       <dt>Status</dt><dd>${STATUS[st.status]}${st.escalated ? ' · 🚨 weakening' : ''}</dd>
-      <dt>Team</dt><dd>${st.team ? 'Team ' + st.team : '–'}</dd>
+      <dt>Team</dt><dd>${st.team ? team(st.team) : '–'}</dd>
       <dt>Scans</dt><dd>${st.scans}</dd></dl>`;
   if (!full && $('detail').querySelector('.kv')) { $('detail').querySelector('.kv').outerHTML = facts; return; }
   const imgs = s.before_img ? `<div class="imgs">
@@ -261,9 +293,21 @@ async function pollRuview() {
       <dt>Presence</dt><dd>${r.presence ? 'yes' : 'no'} · ${esc((r.motion_level || '').replace('_', ' '))}</dd>
       <dt>Persons</dt><dd>${r.estimated_persons ?? '–'}</dd>
       <dt>Breathing</dt><dd>${r.breathing_bpm ?? '<span class="muted">abstained (needs calibration)</span>'}</dd>
-      <dt>Linked to</dt><dd>${r.bound_site ? 'sensor ' + r.bound_site + '-a' : '<span class="muted">no building yet</span>'}</dd>
-      <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>`;
+      <dt>Linked to</dt><dd>${r.bound_site ? name(r.bound_site) : '<span class="muted">no building yet</span>'}</dd>
+      <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>` + liveHtml(r.live);
   } catch (e) { console.warn(e); }
+}
+
+function liveHtml(l) {
+  if (!l) return '';
+  const conf = Math.round((l.confidence || 0) * 100);
+  return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">
+    <b>Live WiFi · this room</b> <span class="muted">${l.fresh ? '● live' : 'stale'} · ${esc(l.interface)} · RSSI ${l.rssi_dbm} dBm</span>
+    <dl class="kv" style="margin-top:4px"><dt>Presence</dt><dd>${l.presence ? 'yes' : 'no'} · ${esc(l.motion_level)}</dd>
+    <dt>Signal change</dt><dd>${l.rssi_variance} dB² <span class="muted">(people moving change WiFi)</span></dd>
+    <dt>Linked to</dt><dd>${l.bound_site ? name(l.bound_site) : '<span class="muted">no building</span>'}</dd>
+    <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>
+    <div class="muted" style="font-size:11px">Real signal from this machine's WiFi, classified by RuView. Presence and motion only, no breathing.</div></div>`;
 }
 
 async function pollFeed() {
