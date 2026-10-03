@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lifeline map</title>
+<!-- Vendored Leaflet only. No basemap tiles, no CDN: this page works with the internet off. -->
+<link rel="stylesheet" href="/vendor/leaflet.css">
+<script src="/vendor/leaflet.js"></script>
+<style>
+  :root { --bg:#0e1116; --panel:#161b22; --ink:#e6edf3; --muted:#8b949e; --line:#30363d;
+          --destroyed:#f85149; --damaged:#d29922; --possible:#8b949e; --survivor:#3fb950;
+          --nosignal:#58a6ff; --team:#e6edf3; }
+  html, body { height:100%; margin:0; background:var(--bg); color:var(--ink);
+               font:14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  #bar { display:flex; flex-wrap:wrap; gap:8px 22px; align-items:center; padding:10px 16px;
+         background:var(--panel); border-bottom:1px solid var(--line); }
+  #bar .brand { font-weight:700; letter-spacing:.06em; }
+  .stat { display:flex; flex-direction:column; }
+  .stat b { font-size:22px; font-variant-numeric:tabular-nums; line-height:1.1; }
+  .stat span { color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+  .badge { padding:4px 8px; border:1px solid var(--damaged); color:var(--damaged); border-radius:4px;
+           font-size:12px; font-weight:700; letter-spacing:.05em; }
+  .badge.local { border-color:var(--survivor); color:var(--survivor); }
+  body { display:flex; flex-direction:column; }
+  #wrap { display:flex; flex:1; min-height:0; }
+  #map { flex:1; background:#05070a; }
+  #side { width:340px; max-width:40vw; overflow:auto; background:var(--panel); border-left:1px solid var(--line);
+          padding:10px 12px; }
+  #side h3 { margin:8px 0 6px; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+  .row { display:flex; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); font-size:13px; }
+  .row .p { width:22px; color:var(--muted); font-variant-numeric:tabular-nums; }
+  .row .id { width:44px; font-weight:600; }
+  .row .st { flex:1; color:var(--muted); }
+  .ack { color:var(--damaged); font-weight:600; }
+  #attr { position:fixed; left:8px; bottom:6px; z-index:1000; font-size:11px; color:var(--muted);
+          background:rgba(14,17,22,.8); padding:3px 6px; border-radius:3px; }
+  .leaflet-container { background:#05070a; }
+  .pulse { animation:pulse 1.2s ease-out infinite; }
+  @keyframes pulse { 0% { stroke-width:2; stroke-opacity:1; } 100% { stroke-width:26; stroke-opacity:0; } }
+  .team { background:var(--team); color:#0e1116; font-weight:800; font-size:11px; border-radius:3px;
+          text-align:center; line-height:18px; box-shadow:0 0 0 2px #0e1116; }
+  .lbl { color:var(--ink); font-size:11px; font-weight:600; text-shadow:0 0 3px #000; white-space:nowrap; }
+  .legend span { display:inline-block; width:10px; height:10px; border-radius:50%; margin:0 4px 0 10px; }
+  @media (max-width:700px) { #wrap { flex-direction:column; } #side { width:auto; max-width:none; height:38%; } }
+</style>
+</head>
+<body>
+<div id="bar">
+  <div class="brand">LIFELINE · Kahramanmaraş</div>
+  <div class="stat"><b id="clock">–</b><span>replay clock</span></div>
+  <div class="stat"><b id="hours">–</b><span>hours since 04:17</span></div>
+  <div class="stat"><b id="ranked">–</b><span>sites ranked</span></div>
+  <div class="stat"><b id="teams">–</b><span>teams deployed</span></div>
+  <div class="stat"><b id="surv">–</b><span>survivors confirmed</span></div>
+  <div class="stat"><b>40 h</b><span>first official map, 2023</span></div>
+  <div class="badge">SENSORS SIMULATED</div>
+  <div class="badge local">ALL INFERENCE ON THIS GB10</div>
+</div>
+<div id="wrap">
+  <div id="map"></div>
+  <div id="side">
+    <div class="legend" style="font-size:12px;color:var(--muted)">
+      <span style="background:var(--destroyed)"></span>Destroyed<span style="background:var(--damaged)"></span>Damaged<span style="background:var(--possible)"></span>Possibly
+      <br><span style="background:var(--survivor)"></span>Survivor<span style="background:var(--nosignal)"></span>No signal after 2 scans
+    </div>
+    <h3>Awaiting commander ack</h3><div id="acks"></div>
+    <h3>Signs of life <span id="src"></span></h3><div id="people"></div>
+    <h3>Priority list</h3><div id="list"></div>
+  </div>
+</div>
+<div id="attr">Damage grading: Copernicus EMS EMSR648, © European Union. <span id="imgattr"></span>Sensor data simulated. No signal ≠ nobody.</div>
+<script>
+const COLORS = { Destroyed:'--destroyed', Damaged:'--damaged', 'Possibly damaged':'--possible' };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const map = L.map('map', { zoomControl:true, attributionControl:false });
+let layers = L.layerGroup().addTo(map), fitted = false, overlay = null;
+
+function siteColor(s) {
+  if (s.status.endsWith('survivor')) return css('--survivor');
+  if (s.status === 'no_signal_2_scans') return css('--nosignal');
+  return css(COLORS[s.grade_label] || '--possible');
+}
+
+function render(d) {
+  const c = d.counters;
+  clock.textContent = d.replay_clock.replace(' local', '').slice(5);
+  hours.textContent = c.hours_since_collapse.toFixed(1);
+  ranked.textContent = c.sites_ranked;
+  teams.textContent = c.teams_deployed + '/3';
+  surv.textContent = c.survivors_confirmed;
+  src.textContent = '(sensor: ' + d.sensor_source + ')';
+
+  if (d.overlay_img && !overlay) {
+    overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.85 }).addTo(map);
+    imgattr.textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
+  }
+  if (!fitted) {
+    const b = d.bounds || L.latLngBounds(d.sites.map(s => [s.lat, s.lon]));
+    map.fitBounds(b, { padding:[40,40] }); fitted = true;
+  }
+
+  layers.clearLayers();
+  for (const s of d.sites) {
+    const surv = s.status.endsWith('survivor');
+    L.circleMarker([s.lat, s.lon], {
+      radius: surv ? 11 : 8, color: surv ? css('--survivor') : '#0e1116', weight: 2,
+      fillColor: siteColor(s), fillOpacity: .95,
+      className: s.status === 'confirmed_survivor' || s.escalated ? 'pulse' : ''
+    }).bindTooltip(`${s.id} · P${s.priority} · ${s.grade_label} · ${s.status}`).addTo(layers);
+    L.marker([s.lat, s.lon], { interactive:false,
+      icon: L.divIcon({ className:'lbl', html:`${s.id}`, iconAnchor:[-10, 6] }) }).addTo(layers);
+  }
+  for (const t of d.teams) {
+    L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:t.id, iconSize:[22,18], iconAnchor:[11,26] }) })
+      .bindTooltip(t.site ? `Team ${t.id} at ${t.site}` : `Team ${t.id} free`).addTo(layers);
+  }
+
+  const bySite = Object.fromEntries(d.sites.map(s => [s.id, s]));
+  acks.innerHTML = d.awaiting_ack.length ? d.awaiting_ack.map(id => {
+    const s = bySite[id];
+    return `<div class="row ack">${s.proposed_team ? `Dispatch Team ${s.proposed_team} → ${id}` : `Survivor alert at ${id}`}</div>`;
+  }).join('') : '<div class="row st">none</div>';
+  people.innerHTML = d.people.length ? d.people.map(p =>
+    `<div class="row"><span class="id">${p.site_id}</span><span class="st">${p.breathing_bpm} bpm · ${p.status.replace('_', ' ')}</span></div>`
+  ).join('') : '<div class="row st">none detected yet (no signal ≠ nobody)</div>';
+  list.innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
+    `<div class="row"><span class="p">${s.priority}</span><span class="id">${s.id}</span>` +
+    `<span class="st">${s.grade_label} · ${s.escalated ? 'ESCALATED · ' : ''}${s.status.replace(/_/g, ' ')}</span></div>`
+  ).join('');
+}
+
+async function poll() {
+  try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); }
+}
+poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>
