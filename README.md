@@ -35,6 +35,25 @@ replay_sensors.py (10 s) ---> data/sensors.json -------------------+    engine.p
 
 The sandbox egress policy allows only local inference and the Telegram Bot API.
 
+## Regions
+
+Pre-loaded at build time, switch with the dashboard dropdown or `go <name>` in Telegram:
+
+| Region | Data |
+|---|---|
+| Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep | 2023 earthquake replay: Copernicus EMSR648 building grading, Maxar before/after tiles (zoom 14-18) |
+| live | Our venue (1 Education St, Cambridge): OpenStreetMap footprint, MassGIS 2025 aerial tiles, live WiFi sensor in this room |
+
+Build: `python build_sites.py --all`, `python make_chips.py --all`, `python make_tiles.py --all`, `python build_live.py`.
+
+## Live room sensor
+
+`ruview_live.py` samples the GB10's own WiFi signal (`iw dev wlP9s9 link`, 5 Hz) and runs RuView's
+commodity-WiFi pipeline (RssiFeatureExtractor + PresenceClassifier from RuView v1) on it.
+RSSI gives presence and motion only, never breathing. RuView's default presence threshold
+(0.5 dB^2) is below this room's idle noise (0.9-1.3 dB^2), so we set `LIFELINE_LIVE_VAR=2.0`.
+In the live region, Building 1 (our venue) reads this sensor; the team keeps scanning.
+
 ## Ranking (engine.py)
 
 `score = grade_weight x occupancy_factor x time_factor`
@@ -66,7 +85,9 @@ Demo controls (another terminal):
 ./reset.sh                                                                 # back to 04:17
 ```
 
-Telegram commands: `status`, `where do we dig`, `who is alive`, `ack B-06`, `ack all`, `scan B-07`.
+Telegram commands: `help`, `status`, `who is alive`, `ack 5`, `ack all`, `scan 7`, `go Malatya`, `go live`.
+Commands are read from the chat transcript by the loop, so an ack always takes effect.
+Security proof: `./leak_test.sh`.
 
 Endpoints: `/sites /hazard /sensors /assess?site_id= /brief /map`, `POST /ack /scan /delivered /reset`.
 `/assess` asks the local qwen to read the before/after satellite chips (second opinion only,
@@ -107,7 +128,19 @@ nemoclaw my-assistant upload skill/playbook.md  /sandbox/.openclaw/workspace/ski
 
 Originals of the sandbox workspace files are in `demo/backup/`.
 
-## Demo script (3 minutes)
+## Demo script v2 (3 minutes): replay, then live
+
+1. Pitch the 40-hour problem. Dashboard on Malatya (102 destroyed). Toggle Before/After on the map.
+2. Telegram: the agent has posted the ranked proposals on its own. Commander replies `ack all`.
+3. `--ruview 5` + `--trigger 5` on the building Team 1 reached: 🟡 then 🟢 CONFIRMED, ack request.
+4. `--decline 5`: 🚨 URGENT, priority 1, without being asked.
+5. Click a building: before/after satellite photos; "Ask the local AI" (qwen on the GB10, ~2 s).
+6. `go live`: the map flies to our own building. `ack 1`. A judge walks past the GB10: the live
+   WiFi bar goes green and the agent posts "possible survivor at Building 1".
+7. `./leak_test.sh`: refused by the agent, DENIED by OpenShell. `nvidia-smi` shows the local GPU.
+8. Close: "Satellites tell you which building. WiFi tells you who is alive inside."
+
+## Demo script v1 (3 minutes)
 
 1. "6 Feb 2023, 04:17. Thousands of buildings down by morning. The first official damage map
    came 40 hours later. One question nobody could answer fast: where do we dig?"
