@@ -311,9 +311,9 @@ function liveHtml(l) {
   if (!l) return '';
   const conf = Math.round((l.confidence || 0) * 100);
   return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">
-    <b>Live WiFi · this room</b> <span class="muted">${l.fresh ? '● live' : 'stale'} · ${esc(l.interface)} · RSSI ${l.rssi_dbm} dBm</span>
+    <b>Live WiFi · this room</b> <span class="muted">${l.fresh ? '● live' : 'stale'} · ${esc(l.interface)} · ${Array.isArray(l.rssi_dbm) ? l.rssi_dbm.length + ' antennas: ' + l.rssi_dbm.join(' / ') : l.rssi_dbm} dBm</span>
     <dl class="kv" style="margin-top:4px"><dt>Movement nearby</dt><dd><b>${l.presence ? 'YES' : 'no'}</b></dd>
-    <dt>Signal change</dt><dd>${l.rssi_variance} dB² <span class="muted">(alarm above ${l.threshold ?? '–'}; people moving change WiFi)</span>
+    <dt>Signal change</dt><dd>${(l.per_antenna_variance || [l.rssi_variance]).join(' / ')} dB² <span class="muted">(alarm above ${l.threshold ?? '–'}; people moving change WiFi)</span>
       <div class="meter"><i style="width:${Math.min(100, 100 * l.rssi_variance / (2 * (l.threshold || 2)))}%;background:${l.presence ? 'var(--survivor)' : 'var(--nosignal)'}"></i></div></dd>
     <dt>Linked to</dt><dd>${l.bound_site ? name(l.bound_site) : '<span class="muted">no building</span>'}</dd>
     <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>
