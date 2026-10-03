@@ -1,5 +1,8 @@
 # Lifeline: from orbit to heartbeat
 
+**Demo video:** https://youtu.be/dO4nQzA0oh4
+
+
 An always-on rescue agent in a Telegram group, running entirely on one Dell Pro Max GB10.
 After an earthquake it ranks collapsed buildings by how likely they are to hold survivors,
 proposes rescue-team dispatches for the commander to approve, reads life-sign sensors at each
