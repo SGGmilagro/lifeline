@@ -1,0 +1,53 @@
+{
+ "region": "Live venue",
+ "aoi": "LIVE",
+ "live": true,
+ "event": "Live drill at our venue: no disaster, real WiFi sensor",
+ "source": "OpenStreetMap footprint; MassGIS 2025 aerial imagery; live WiFi via RuView",
+ "attribution": "Imagery: MassGIS 2025 aerial imagery. Footprint: (c) OpenStreetMap contributors",
+ "aoi_summary": {
+  "buildings_graded": 0,
+  "by_grade": {},
+  "method": "No damage grading: live drill"
+ },
+ "selection": "Our venue building only",
+ "sites": [
+  {
+   "id": "B-01",
+   "name": "Our venue (live drill)",
+   "lat": 42.369985,
+   "lon": -71.07064,
+   "grade": 0,
+   "grade_label": "No disaster (live drill)",
+   "building_use": "Education",
+   "use_detail": "Hult International Business School",
+   "kind": "our venue (9 floors), live WiFi sensor",
+   "footprint_m2": 2452,
+   "outline": [
+    [
+     -71.0710844,
+     42.3699924
+    ],
+    [
+     -71.0704751,
+     42.3696793
+    ],
+    [
+     -71.0701956,
+     42.3699784
+    ],
+    [
+     -71.070805,
+     42.3702915
+    ],
+    [
+     -71.0710844,
+     42.3699924
+    ]
+   ],
+   "notation": "OpenStreetMap footprint",
+   "det_method": "Live WiFi sensing (RuView RSSI), no damage data",
+   "source": "openstreetmap+live-wifi"
+  }
+ ]
+}

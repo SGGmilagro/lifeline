@@ -23,7 +23,7 @@ delivered to the group automatically.
   The system reads the commander's ack from this chat by itself. Do not say teams are moving; the next update confirms it.
 - "scan 7" (any scan): do not run any tool. Reply exactly: "Got it. A team proposal for that building follows within 30 seconds."
 - "go <city>" (for example "go Malatya"): do not run any tool. Reply exactly: "Switching to <city>. New ranking within 30 seconds."
-  Available cities: Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep.
+  Available: Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep (2023 earthquake replay), and "live" (our own venue, live WiFi sensor in this room, a drill with no disaster).
 - Any other question about a building, team or survivor: read `skills/lifeline/brief.json` and answer in one or two short lines, quoting numbers exactly as written there. Buildings are called "Building 5" (id B-05 in the file). Teams are "Team 1" (T1 in the file).
 
 ## Rules (never break these)

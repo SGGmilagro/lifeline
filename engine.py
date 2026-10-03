@@ -37,11 +37,11 @@ def region_list():
     for d in sorted(REGIONS.iterdir()):
         if (d / "sites.json").exists():
             m = json.loads((d / "sites.json").read_text())
-            ov = d / "img" / "overview.json"
+            imagery = (d / "img" / "overview.json").exists() or (d / "tiles" / "tiles.json").exists()
             out.append({"slug": d.name, "name": m["region"], "sites": len(m["sites"]),
                         "buildings_graded": m["aoi_summary"]["buildings_graded"],
                         "destroyed": m["aoi_summary"]["by_grade"].get("Destroyed", 0),
-                        "imagery": ov.exists()})
+                        "live": bool(m.get("live")), "imagery": imagery})
     return out
 SENSORS_FILE = DATA / "sensors.json"
 STATE_FILE = DATA / "state.json"
@@ -63,7 +63,7 @@ Send me:
 • ack 5 → approve what I proposed for Building 5
 • ack all → approve everything waiting
 • scan 7 → ask for a team at Building 7
-• go Malatya → switch city (Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep)
+• go Malatya → switch city (Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep)\n• go live → our own building, with the live WiFi sensor in this room
 
 🟢 survivor confirmed · 🟡 possible survivor · 🚨 getting weaker · ⚪ no signal yet (people may still be inside)
 
@@ -418,6 +418,8 @@ class Engine:
 
     def kind(self, sid):
         s = self.sites[sid]
+        if s.get("kind"):
+            return s["kind"]
         if s.get("building_use", "").lower().startswith("residential"):
             return "apartment block"
         detail = (s.get("use_detail") or "").lower()
@@ -430,12 +432,20 @@ class Engine:
     # Written for a commander reading on a phone: short lines, one emoji per kind of event.
     FOOTER = "Simulated sensors · Copernicus satellite damage data · runs only on this machine"
 
+    @property
+    def footer(self):
+        if self.meta.get("live"):
+            return "Live drill, no disaster · real WiFi sensor in this room (RuView) · runs only on this machine"
+        return self.FOOTER
+
     def _clock(self, b):
+        if self.meta.get("live"):
+            return "live drill · " + time.strftime("%H:%M")
         return f"{b['replay_clock'][5:16].replace('02-06', '6 Feb')} · {b['hours_since_collapse']}h after quake"
 
     @staticmethod
     def _src(source):
-        names = {"replay": "replay", "ruview-sim": "RuView sim"}
+        names = {"replay": "replay", "ruview-sim": "RuView sim", "ruview-rssi-live": "live WiFi in this room"}
         return " + ".join(names.get(x, x) for x in (source or "").split("+") if x)
 
     def _decisions(self, b):
@@ -471,6 +481,8 @@ class Engine:
             what = f"Team {team} ready, needs your ack"
         else:
             what = "no team yet"
+        if self.meta.get("live"):
+            return f"{s['priority']}. {s['id']} · {self.kind(s['id'])} · {what}"
         return f"{s['priority']}. {s['id']} · {s['grade_label'].lower()} {self.kind(s['id'])} · {what}"
 
     def _render_status(self, b):
@@ -480,12 +492,12 @@ class Engine:
              "", "WHERE TO DIG"]
         L += [self._site_line(s) for s in b["sites_ranked"][:5]]
         L += self._decisions(b)
-        L += ["", "Send help for all commands.", self.FOOTER]
+        L += ["", "Send help for all commands.", self.footer]
         return "\n".join(L)
 
     def _render_people(self, b):
         if not b["people"]:
-            return "No signs of life detected yet.\nNo signal does not mean nobody is there.\n\n" + self.FOOTER
+            return "No signs of life detected yet.\nNo signal does not mean nobody is there.\n\n" + self.footer
         L = ["SIGNS OF LIFE"]
         for p in b["people"]:
             mark = "🚨" if self.state["sites"][p["site_id"]]["escalated"] else \
@@ -495,7 +507,7 @@ class Engine:
             conf = "confirmed" if p["status"] == "confirmed_survivor" else "not yet confirmed"
             L.append(f"{mark} {p['site_id']}: {br}, {'moving' if p['moving'] else 'not moving'}. "
                      f"{conf.capitalize()} ({self._src(p['source'])}).")
-        L += ["", self.FOOTER]
+        L += ["", self.footer]
         return "\n".join(L)
 
     def _render_heartbeat(self, b):
@@ -529,7 +541,7 @@ class Engine:
             L += ["", f"⚪ No signal yet at {ids}. People may still be inside.",
                   "Teams move to the next building."]
         L += self._decisions(b)
-        L += ["", self.FOOTER]
+        L += ["", self.footer]
         return "\n".join(L)
 
     def _sensor_source(self):
@@ -552,7 +564,9 @@ class Engine:
                 "region": self.region_name, "region_slug": self.region,
                 "replay_clock": self.replay_clock(),
                 "counters": self.counters(),
+                "live": bool(self.meta.get("live")),
                 "sites": [{"id": sid, "lat": s["lat"], "lon": s["lon"], "status": st["sites"][sid]["status"],
+                           "outline": s.get("outline"),
                            "priority": prio[sid], "grade_label": s["grade_label"],
                            "escalated": st["sites"][sid]["escalated"],
                            "proposed_team": st["proposals"].get(sid)} for sid, s in self.sites.items()],

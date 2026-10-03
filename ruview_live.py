@@ -24,6 +24,9 @@ from v1.src.sensing.rssi_collector import WifiSample  # noqa: E402
 OUT = Path(__file__).parent / "data" / "live_sensor.json"
 RATE_HZ = 5
 WINDOW_S = 10
+# RuView's default presence threshold (0.5 dB^2) is below this room's idle WiFi noise
+# (measured 0.9-1.3 dB^2 with nobody near), so we calibrate it for the venue.
+VAR_THRESH = float(os.environ.get("LIFELINE_LIVE_VAR", "2.0"))
 
 
 def read_iw(iface):
@@ -52,7 +55,7 @@ def main():
     a = ap.parse_args()
     samples = deque(maxlen=RATE_HZ * 60)
     extractor = RssiFeatureExtractor(window_seconds=WINDOW_S)
-    classifier = PresenceClassifier()
+    classifier = PresenceClassifier(presence_variance_threshold=VAR_THRESH)
     last_write = 0.0
     print(f"live RuView RSSI sensing on {a.iface} -> {OUT}")
     while True:
@@ -62,7 +65,9 @@ def main():
         if time.time() - last_write >= 2 and len(samples) >= RATE_HZ * 4:
             r = classifier.classify(extractor.extract(list(samples)))
             write_atomic({"source": "ruview-rssi-live", "interface": a.iface, "time": time.time(),
-                          "presence": bool(r.presence_detected), "motion_level": r.motion_level.value,
+                          "presence": bool(r.presence_detected),
+                          "motion_level": r.motion_level.value if r.presence_detected else "absent",
+                          "threshold": VAR_THRESH,
                           "confidence": round(float(r.confidence), 2), "rssi_dbm": samples[-1].rssi_dbm,
                           "rssi_variance": round(float(r.rssi_variance), 3), "details": r.details})
             last_write = time.time()

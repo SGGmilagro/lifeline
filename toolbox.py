@@ -75,7 +75,10 @@ def set_region(name: str):
     if slug not in known:
         return {"ok": False, "result": f"Unknown region {name}. Available: {', '.join(r['name'] for r in known.values())}"}
     CURRENT_REGION.write_text(slug)
-    (DATA / "sensor_control.json").write_text("{}")   # survivor signals belong to the old region
+    # Survivor signals belong to the old region. The live venue links its building to the room sensor.
+    live = json.loads((REGIONS / slug / "sites.json").read_text()).get("live")
+    ctrl = {"B-01": {"start": __import__("time").time(), "moving": False, "live": True}} if live else {}
+    (DATA / "sensor_control.json").write_text(json.dumps(ctrl))
     new = Engine(speed=engine.speed, region=slug)
     new.reset()
     new._alert("region", None, f"Incident switched to {new.region_name}. Replay restarted at 04:17.")

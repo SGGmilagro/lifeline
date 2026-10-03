@@ -86,9 +86,9 @@
 </head>
 <body>
 <header>
-  <div class="brand">LIFELINE COMMAND<small>Earthquake 6 Feb 2023 · replay</small></div>
+  <div class="brand">LIFELINE COMMAND<small id="subtitle">Earthquake 6 Feb 2023 · replay</small></div>
   <select id="region" title="Incident region"></select>
-  <div class="stat"><b id="clock">–</b><span>replay clock</span></div>
+  <div class="stat"><b id="clock">–</b><span id="clocklbl">replay clock</span></div>
   <div class="stat"><b id="hours">–</b><span>hours after quake</span></div>
   <div class="stat"><b id="ranked">–</b><span>sites ranked</span></div>
   <div class="stat"><b id="teams">–</b><span>teams out</span></div>
@@ -170,7 +170,8 @@ function color(s) {
 async function loadRegions() {
   const r = await (await fetch('/regions')).json();
   $('region').innerHTML = r.regions.map(x =>
-    `<option value="${x.slug}" ${x.slug === r.current ? 'selected' : ''}>${esc(x.name)} · ${x.destroyed} destroyed${x.imagery ? '' : ' · no imagery'}</option>`).join('');
+    `<option value="${x.slug}" ${x.slug === r.current ? 'selected' : ''}>${x.live ? '🔴 ' + esc(x.name) + ' · live room sensor' :
+      esc(x.name) + ' · 2023 replay · ' + x.destroyed + ' destroyed'}</option>`).join('');
 }
 $('region').onchange = async e => {
   $('region').disabled = true;
@@ -183,34 +184,41 @@ $('region').onchange = async e => {
 function render(d) {
   last = d;
   const c = d.counters;
-  $('clock').textContent = d.replay_clock.replace(' local', '').slice(5);
-  $('hours').textContent = c.hours_since_collapse.toFixed(1);
+  $('clock').textContent = d.live ? new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) : d.replay_clock.replace(' local', '').slice(5);
+  $('clocklbl').textContent = d.live ? 'live, now' : 'replay clock';
+  $('hours').textContent = d.live ? '–' : c.hours_since_collapse.toFixed(1);
   $('ranked').textContent = c.sites_ranked;
   $('teams').textContent = c.teams_deployed + '/3';
   $('surv').textContent = c.survivors_confirmed;
 
   if (d.region_slug !== region) {             // new region: re-fit and swap the satellite overlay
     region = d.region_slug;
+    $('subtitle').textContent = d.live ? 'LIVE drill at our venue · real WiFi sensor' : 'Earthquake 6 Feb 2023 · replay';
+    $('attr').firstChild.textContent = d.live ? 'Footprint © OpenStreetMap contributors. ' : 'Damage grading: Copernicus EMS EMSR648, © European Union. ';
     if (overlay) { map.removeLayer(overlay); overlay = null; }
     if (d.tiles) {
       tilesMeta = d.tiles;
       overlay = L.tileLayer(d.tiles.url.replace('{layer}', imgLayer), { minZoom:d.tiles.minzoom, maxNativeZoom:d.tiles.maxzoom,
         maxZoom:20, bounds:d.tiles.bounds, errorTileUrl:'' }).addTo(map);
       overlay.bringToBack();
-      $('imgtoggle').hidden = false; setToggle();
-      $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
+      if (!d.tiles.before_date) imgLayer = 'after';
+      overlay.setUrl(d.tiles.url.replace('{layer}', imgLayer));
+      $('imgtoggle').hidden = false; $('btnBefore').hidden = !d.tiles.before_date; setToggle();
+      $('imgattr').textContent = (d.tiles.attribution || 'Imagery © Maxar, CC BY-NC 4.0') + '. ';
     } else if (d.overlay_img) {
       overlay = L.imageOverlay(d.overlay_img, d.bounds, { opacity:.9 }).addTo(map);
       $('imgtoggle').hidden = true;
       $('imgattr').textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
     } else { $('imgtoggle').hidden = true; $('imgattr').textContent = ''; }
-    map.fitBounds(L.latLngBounds(d.sites.map(s => [s.lat, s.lon])), { padding:[60,60], maxZoom:17 });
+    map.fitBounds(L.latLngBounds(d.sites.map(s => [s.lat, s.lon])), { padding:[60,60], maxZoom: d.live ? 18 : 17 });
     loadRegions();
   }
 
   layers.clearLayers();
   for (const s of d.sites) {
     const surv = s.status.endsWith('survivor'), sel = s.id === selected;
+    if (s.outline) L.polygon(s.outline.map(p => [p[1], p[0]]), { color: surv ? css('--survivor') : '#58a6ff',
+      weight: 3, fillOpacity: surv ? .25 : .08, className: surv ? 'pulse' : '' }).on('click', () => select(s.id)).addTo(layers);
     L.circleMarker([s.lat, s.lon], {
       radius: sel ? 12 : surv ? 11 : 8, color: sel ? '#fff' : surv ? css('--survivor') : '#0b0e13',
       weight: sel ? 3 : 2, fillColor: color(s), fillOpacity:.95,
@@ -256,7 +264,7 @@ async function refreshDetail(full) {
   const st = s.state, pr = last && last.sites.find(x => x.id === s.id);
   const facts = `<dl class="kv">
       <dt>Priority</dt><dd>${pr ? pr.priority : '–'}</dd>
-      <dt>Damage</dt><dd>${esc(s.grade_label)} <span class="muted">(Copernicus, satellite)</span></dd>
+      <dt>Damage</dt><dd>${esc(s.grade_label)} <span class="muted">${last && last.live ? '(live drill, no damage data)' : '(Copernicus, satellite)'}</span></dd>
       <dt>Use</dt><dd>${esc(s.building_use)}</dd>
       <dt>Footprint</dt><dd>${s.footprint_m2 == null ? 'not mapped' : s.footprint_m2.toLocaleString() + ' m²'}</dd>
       <dt>Status</dt><dd>${STATUS[st.status]}${st.escalated ? ' · 🚨 weakening' : ''}</dd>
@@ -267,6 +275,7 @@ async function refreshDetail(full) {
       <figure><img src="${s.before_img}" alt="Satellite image before the quake"><figcaption>Before · ${s.before_date}</figcaption></figure>
       <figure><img src="${s.after_img}" alt="Satellite image after the quake"><figcaption>After · ${s.after_date}</figcaption></figure></div>
       <button id="askai">Ask the local AI to compare</button><div id="aiout"></div>`
+    : last && last.live ? '<p class="muted">Live drill: the sensor for this building is the real WiFi in this room (see WiFi sensing below).</p>'
     : '<p class="muted">No before/after satellite pair covers this building.</p>';
   $('detail').innerHTML = facts + imgs;
   if ($('askai')) $('askai').onclick = assess;
@@ -304,7 +313,8 @@ function liveHtml(l) {
   return `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--line)">
     <b>Live WiFi · this room</b> <span class="muted">${l.fresh ? '● live' : 'stale'} · ${esc(l.interface)} · RSSI ${l.rssi_dbm} dBm</span>
     <dl class="kv" style="margin-top:4px"><dt>Presence</dt><dd>${l.presence ? 'yes' : 'no'} · ${esc(l.motion_level)}</dd>
-    <dt>Signal change</dt><dd>${l.rssi_variance} dB² <span class="muted">(people moving change WiFi)</span></dd>
+    <dt>Signal change</dt><dd>${l.rssi_variance} dB² <span class="muted">(alarm above ${l.threshold ?? '–'}; people moving change WiFi)</span>
+      <div class="meter"><i style="width:${Math.min(100, 100 * l.rssi_variance / (2 * (l.threshold || 2)))}%;background:${l.presence ? 'var(--survivor)' : 'var(--nosignal)'}"></i></div></dd>
     <dt>Linked to</dt><dd>${l.bound_site ? name(l.bound_site) : '<span class="muted">no building</span>'}</dd>
     <dt>Confidence</dt><dd>${conf}%<div class="meter"><i style="width:${conf}%"></i></div></dd></dl>
     <div class="muted" style="font-size:11px">Real signal from this machine's WiFi, classified by RuView. Presence and motion only, no breathing.</div></div>`;
