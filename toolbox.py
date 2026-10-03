@@ -126,6 +126,77 @@ def ruview():
         return {"ok": False, "error": type(e).__name__}
 
 
+# ---------- live sensor proof: a scored 60-second protocol ----------
+LIVETEST = {"state": "idle"}
+PHASES = [("still", 20), ("walk", 20), ("still", 20)]
+
+
+def _livetest_run():
+    import threading, time as _t
+    def run():
+        t0 = _t.time()
+        LIVETEST.update(state="running", started=t0, samples=[], result=None)
+        end = t0 + sum(d for _, d in PHASES)
+        while _t.time() < end:
+            el = _t.time() - t0
+            acc, phase = 0, PHASES[-1][0]
+            for ph, d in PHASES:
+                if el < acc + d:
+                    phase = ph
+                    break
+                acc += d
+            live = _live() or {}
+            LIVETEST["samples"].append({"t": round(el, 1), "phase": phase, "moving": bool(live.get("presence")),
+                                        "variance": live.get("rssi_variance")})
+            _t.sleep(1)
+        sm = LIVETEST["samples"]
+        walk = [x for x in sm if x["phase"] == "walk" and x["t"] >= 25]      # sensor window is 10 s: allow 5 s to react
+        still = [x for x in sm if x["phase"] == "still" and (x["t"] < 20 or x["t"] >= 50)]
+        hit = sum(x["moving"] for x in walk)
+        fa = sum(x["moving"] for x in still)
+        first = next((x["t"] for x in sm if x["phase"] == "walk" and x["moving"]), None)
+        LIVETEST.update(state="done", result={
+            "walk_detected_s": hit, "walk_window_s": len(walk), "false_alarm_s": fa, "still_window_s": len(still),
+            "detection_rate": round(hit / len(walk), 2) if walk else None,
+            "false_alarm_rate": round(fa / len(still), 2) if still else None,
+            "first_detection_after_walk_start_s": round(first - 20, 1) if first is not None else None,
+            "sensor": "GB10 WiFi RSSI, 2 antennas, RuView classifier", "threshold": (_live() or {}).get("threshold")})
+        (DATA / "validation_live.json").write_text(json.dumps(LIVETEST, indent=1))
+    threading.Thread(target=run, daemon=True).start()
+
+
+@app.post("/livetest")
+def livetest_start():
+    if LIVETEST.get("state") == "running":
+        return {"ok": False, "result": "already running"}
+    _livetest_run()
+    return {"ok": True}
+
+
+@app.get("/livetest")
+def livetest():
+    out = {k: v for k, v in LIVETEST.items()}
+    if out.get("state") == "running":
+        el = __import__("time").time() - out["started"]
+        acc = 0
+        for ph, d in PHASES:
+            if el < acc + d:
+                out.update(phase=ph, remaining=round(acc + d - el))
+                break
+            acc += d
+    return out
+
+
+@app.get("/proof")
+def proof():
+    f = DATA / "validation_vision.json"
+    v = json.loads(f.read_text()) if f.exists() else None
+    if v:
+        v = {k: x for k, x in v.items() if k != "rows"}
+    return {"vision": v, "live": LIVETEST.get("result") or (json.loads((DATA / "validation_live.json").read_text()).get("result")
+                                                           if (DATA / "validation_live.json").exists() else None)}
+
+
 def _live():
     f = DATA / "live_sensor.json"
     if not f.exists():

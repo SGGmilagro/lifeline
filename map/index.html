@@ -73,6 +73,11 @@
   #attr { position:fixed; left:8px; bottom:6px; z-index:1000; font-size:11px; color:var(--muted);
           background:rgba(11,14,19,.85); padding:3px 6px; border-radius:3px; max-width:calc(100% - 16px); }
   .leaflet-container { background:#05070a; }
+  #testbanner { position:fixed; inset:auto 0 40% 0; margin:auto; width:min(560px, 90vw); z-index:2000; text-align:center;
+                padding:22px; border-radius:14px; font-size:34px; font-weight:800; letter-spacing:.04em;
+                background:rgba(11,14,19,.94); border:3px solid var(--accent); box-shadow:0 10px 40px #000; }
+  #testbanner small { display:block; font-size:15px; font-weight:500; color:var(--muted); letter-spacing:0; margin-top:6px; }
+  #testbanner.walk { border-color:var(--survivor); color:var(--survivor); }
   .pulse { animation:pulse 1.2s ease-out infinite; }
   @keyframes pulse { 0% { stroke-width:2; stroke-opacity:1; } 100% { stroke-width:28; stroke-opacity:0; } }
   .team { background:#e6edf3; color:#0b0e13; font-weight:800; font-size:11px; border-radius:3px;
@@ -107,6 +112,11 @@
   </div>
   <aside>
     <section>
+      <h3>Proof <span class="note muted">measured on this GB10, not claimed</span></h3>
+      <div class="card" id="proof"><span class="muted">loading…</span>
+      </div>
+    </section>
+    <section>
       <h3>Your decisions <span class="note muted">same as replying "ack" in Telegram</span></h3>
       <div class="card" id="decisions"></div>
     </section>
@@ -137,6 +147,7 @@
     </section>
   </aside>
 </main>
+<div id="testbanner" hidden></div>
 <div id="attr">Damage grading: Copernicus EMS EMSR648, © European Union. <span id="imgattr"></span>Sensor data simulated. No signal ≠ nobody.</div>
 <script>
 const $ = id => document.getElementById(id);
@@ -322,6 +333,41 @@ function liveHtml(l) {
     Counting and breathing need CSI sensors (about $9 ESP32-S3 per room).</div></div>`;
 }
 
+async function startTest() { await post('/livetest'); pollTest(); }
+async function pollTest() {
+  const t = await (await fetch('/livetest')).json();
+  const b = $('testbanner');
+  if (t.state === 'running') {
+    const last = t.samples && t.samples[t.samples.length - 1];
+    b.hidden = false; b.className = t.phase === 'walk' ? 'walk' : '';
+    b.innerHTML = `${t.phase === 'walk' ? 'WALK NOW' : 'STAY STILL'} · ${t.remaining}s
+      <small>Live sensor says: ${last && last.moving ? '<b style="color:var(--survivor)">movement</b>' : 'no movement'}
+      · signal change ${last ? last.variance : '–'} dB²</small>`;
+    setTimeout(pollTest, 500);
+  } else { b.hidden = true; pollProof(); }
+}
+async function pollProof() {
+  try {
+    const p = await (await fetch('/proof')).json();
+    const v = p.vision, l = p.live;
+    const pct = x => x == null ? '–' : Math.round(x * 100) + '%';
+    $('proof').innerHTML = `<b>Satellite + local AI vs EU experts</b>
+      ${v ? `<dl class="kv" style="margin-top:4px">
+        <dt>Damage found</dt><dd>${pct(v.damage_recall)} of expert-graded damaged/destroyed buildings</dd>
+        <dt>Destroyed → "collapsed"</dt><dd>${pct(v.destroyed_flagged_collapsed)}</dd>
+        <dt>Undamaged → "standing"</dt><dd>${pct(v.undamaged_correctly_standing)} <span class="muted">(controls)</span></dd>
+        <dt>Sample</dt><dd>${v.n} buildings, 5 cities, blind · ${v.median_seconds}s each on GB10</dd></dl>`
+        : '<div class="muted">running the blind test…</div>'}
+      <div style="margin-top:10px"><b>Live WiFi sensor, 60-second test</b></div>
+      ${l ? `<dl class="kv" style="margin-top:4px">
+        <dt>Walking caught</dt><dd>${l.walk_detected_s}/${l.walk_window_s} s (${pct(l.detection_rate)})</dd>
+        <dt>False alarms</dt><dd>${l.false_alarm_s}/${l.still_window_s} s still (${pct(l.false_alarm_rate)})</dd>
+        <dt>Reaction</dt><dd>${l.first_detection_after_walk_start_s ?? 'not detected'}${l.first_detection_after_walk_start_s != null ? ' s after walking started' : ''}</dd></dl>`
+        : '<div class="muted">not run yet</div>'}
+      <button style="margin-top:8px" onclick="startTest()">Run 60-second live test</button>`;
+  } catch (e) { console.warn(e); }
+}
+
 async function pollFeed() {
   try {
     const r = await (await fetch('/alerts')).json();
@@ -333,7 +379,8 @@ async function pollFeed() {
 }
 
 async function poll() { try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); } }
-loadRegions(); poll(); pollRuview(); pollFeed();
+loadRegions(); poll(); pollRuview(); pollFeed(); pollProof(); pollTest();
+setInterval(() => { if ($('testbanner').hidden) pollProof(); }, 15000);
 setInterval(poll, 2000); setInterval(pollRuview, 2000); setInterval(pollFeed, 3000);
 </script>
 </body>

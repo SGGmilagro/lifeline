@@ -1,0 +1,522 @@
+{
+ "model": "qwen3.5:9b-128k",
+ "device": "Dell Pro Max GB10 (local)",
+ "n": 60,
+ "ground_truth": "Copernicus EMS EMSR648 expert grading (photo-interpretation)",
+ "imagery": "Maxar Open Data before/after, CC BY-NC 4.0",
+ "sample": "random, seed 42, up to 4 per grade per region, buildings not used in the demo",
+ "damage_recall": 0.89,
+ "destroyed_flagged_collapsed": 0.6,
+ "undamaged_correctly_standing": 0.11,
+ "counts": {
+  "tp": 24,
+  "fn": 3,
+  "tn": 2,
+  "fp": 17
+ },
+ "matrix": {
+  "Destroyed": {
+   "collapsed": 9,
+   "standing": 2,
+   "damaged": 4
+  },
+  "Possibly damaged": {
+   "collapsed": 9,
+   "damaged": 3,
+   "standing": 2
+  },
+  "No visible damage": {
+   "damaged": 6,
+   "collapsed": 11,
+   "standing": 2
+  },
+  "Damaged": {
+   "damaged": 6,
+   "collapsed": 5,
+   "standing": 1
+  }
+ },
+ "median_seconds": 1.39,
+ "rows": [
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 8,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nIn the first image, the building is fully intact with a clear roof structure, while in the second image, the roof has vanished and debris lies scattered on the ground below, indicating a total structural collapse.",
+   "seconds": 1.69
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 19,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe roof has disappeared and there is rubble visible on the ground around it, suggesting that it collapsed during the earthquake.",
+   "seconds": 1.05
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 9,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows buildings with intact roofs, while the second image reveals a significant portion of one building's roof has caved in and debris is scattered across the ground next to it.",
+   "seconds": 3.84
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 10,
+   "copernicus": "Destroyed",
+   "ai": "standing",
+   "answer": "standing\n\nThe building remains structurally intact with no visible deformation or collapse in either image; the surrounding infrastructure also appears undisturbed, indicating no seismic damage occurred between the two images.",
+   "seconds": 2.34
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 93,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe buildings are visibly destroyed with rubble filling the streets and parking lots in the second image, indicating a structural collapse rather than just minor damage or remaining standing.",
+   "seconds": 6.24
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 139,
+   "copernicus": "Possibly damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe roofs appear distorted and warped in the second image compared to the clear structure in the first, indicating structural compromise from seismic activity.",
+   "seconds": 1.15
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 105,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe primary structure is no longer upright; its roof has fallen onto what remains of its walls, indicating collapse rather than mere damage or standing.",
+   "seconds": 1.17
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 91,
+   "copernicus": "Possibly damaged",
+   "ai": "damaged",
+   "answer": "damaged - The structure has visible cracks and displaced sections compared to its intact state in the first image",
+   "seconds": 0.9
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 6489,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "Damaged. The second image clearly shows the red roof is gone and debris has scattered on the ground below, which are definitive signs that the structure was destroyed by a major seismic event like an earthquake.",
+   "seconds": 1.44
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 6627,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe roofline in the second image is significantly less distinct and shows signs of structural failure compared to the clearer, intact structure in the first image.",
+   "seconds": 1.23
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 3897,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe red-roofed structure in both images shows clear signs of structural failure \u2014 including a collapsed roof section and visible debris near the foundation \u2014 indicating it sustained heavy damage during seismic activity rather than being fully destroyed or remaining intact.",
+   "seconds": 1.66
+  },
+  {
+   "region": "Kahramanmaras",
+   "feature_index": 2508,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe red-roofed building is cracked on its left side but still standing, not fully collapsed or undamaged.",
+   "seconds": 1.07
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 254,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe structural integrity of the building is completely compromised, with its roof collapsed into a disorganized pile of rubble that no longer resembles any recognizable architectural form.",
+   "seconds": 1.22
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 715,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe image on the right shows what was once a dense urban area, now reduced to rubble and debris. The organized grid of streets and rooftops has been completely obliterated, leaving only scattered fragments of walls and foundations. This total destruction indicates that the structures have failed catastrophically and fallen down rather than merely sustaining partial damage or remaining standing.",
+   "seconds": 2.28
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 475,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image displays intact buildings with organized roofs and streets, while the second shows a chaotic pile of rubble at the same location, indicating total structural failure.",
+   "seconds": 1.26
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 3340,
+   "copernicus": "No visible damage",
+   "ai": "standing",
+   "answer": "standing\n\nThe satellite images show a residential area with multiple intact buildings, curved driveways, and clearly visible red-tiled roofs \u2014 typical features of an undisturbed neighborhood. There are no signs of structural collapse, debris fields, or widespread destruction that would indicate earthquake damage. The second image appears to be a low-resolution, possibly filtered or altered version of the first, but does not reveal any collapsed structures. Since both images depict the same scene without evidence of disaster impact, the buildings remain standing.",
+   "seconds": 3.07
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 817,
+   "copernicus": "Destroyed",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe first image shows a multi-story building with intact floors and clean lines, while the second image reveals severe structural failure\u2014the roof is caved in, walls are broken, and rubble litters the ground\u2014indicating major damage from seismic shaking.",
+   "seconds": 1.76
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2327,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe second image is blurry but shows structures that have been flattened into a uniform, rubble-like mass, which contrasts with the clear architectural forms and intact roofs visible in the first image. This change indicates a loss of structural integrity consistent with an earthquake-induced collapse.",
+   "seconds": 1.8
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2320,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows a multi-story building with its roof and upper floors intact, while the second image displays the same structure reduced to rubble, indicating complete structural failure consistent with collapse after an earthquake.",
+   "seconds": 1.46
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2331,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe left image displays a normal urban layout with intact buildings, while the right shows disorganized debris, rubble, and fragmented structures consistent with structural failure following an earthquake.",
+   "seconds": 1.29
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2322,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe white structure in the second image shows clear signs of structural failure with parts tilted and separated from their original positions, indicating significant damage rather than complete collapse or undisturbed standing condition.",
+   "seconds": 1.47
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 946,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\nThe second image exhibits extreme blurring and a blocky, pixelated appearance that suggests structural instability or collapse, unlike the clear structure in the first image.",
+   "seconds": 1.26
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2560,
+   "copernicus": "Damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows a well-constructed multi-story building with intact red roofs and clear structural integrity, while the second image displays severe fragmentation, displacement of materials, and complete loss of architectural form\u2014indicative of total collapse due to seismic force.",
+   "seconds": 1.72
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2563,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe second image shows severe structural damage to the buildings, with visible cracks and debris, indicating they were not merely \"standing\" nor completely \"collapsed\", but significantly compromised by the earthquake.",
+   "seconds": 1.42
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2624,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe second image shows a pile of rubble with no identifiable roof structure, which is consistent with a building that has been reduced to debris by a strong seismic event.",
+   "seconds": 1.26
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2638,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows multiple intact buildings with visible roofs, windows, and structural integrity. The second image displays a heavily distorted, fragmented view of what appears to be rubble or debris\u2014indicated by irregular shapes, loss of roof lines, and chaotic patterns consistent with building collapse. This suggests the structure has lost its original form due to seismic damage, making \u2018collapsed\u2019 the most accurate descriptor among the options.",
+   "seconds": 2.56
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2644,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows a clear structure with visible walls and roof, while the second image displays only fragmented rubble on the ground where the building once stood, indicating total structural failure consistent with being collapsed by an earthquake.",
+   "seconds": 1.5
+  },
+  {
+   "region": "Malatya",
+   "feature_index": 2631,
+   "copernicus": "Possibly damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe second image shows fragmented roof tiles and structural displacement compared to the intact, aligned roofs in the first image, indicating partial collapse or severe damage consistent with seismic shaking.",
+   "seconds": 1.39
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 995,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "Damaged. The roofs are partially caved in due to the earthquake.",
+   "seconds": 0.81
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 659,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe building\u2019s structural integrity is lost, with debris scattered across its footprint and no recognizable walls remaining above ground level.",
+   "seconds": 1.11
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 370,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe buildings are significantly reduced in height and appear to have lost their structural integrity compared to their original form.",
+   "seconds": 1.03
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 457,
+   "copernicus": "No visible damage",
+   "ai": "standing",
+   "answer": "standing\n\nThe building's structure remains intact in both images, with no visible deformation or collapse, suggesting it survived the seismic event due to its design or location.",
+   "seconds": 1.22
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 72,
+   "copernicus": "Destroyed",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe right image shows partial roof collapse, debris fields, and exposed structural elements not present in the intact left image, indicating significant seismic damage rather than total collapse.",
+   "seconds": 1.28
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 37,
+   "copernicus": "Destroyed",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe second image shows structural deformation, displaced roofing panels, and debris accumulation indicating partial collapse of a portion of the building\u2019s roofline \u2014 consistent with damage from seismic shaking rather than full standing integrity or complete destruction.",
+   "seconds": 1.58
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 44,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows a multi-story building with visible roof structures and intact upper floors, while the second image shows the same structure reduced to rubble and debris, indicating complete structural failure following seismic activity.",
+   "seconds": 1.43
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 447,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe buildings visible in the second image are clearly reduced to rubble and twisted metal structures, indicating that they have completely collapsed following the seismic event, rather than merely being damaged or still standing.",
+   "seconds": 1.41
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 2146,
+   "copernicus": "Damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe second image shows complete disintegration of structural components, including fallen beams and debris spread across the area \u2014 definitive signs of collapse rather than partial damage or continued standing.",
+   "seconds": 1.26
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 2171,
+   "copernicus": "Damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe roof is missing in the second image, indicating that the building has suffered structural failure due to the earthquake.",
+   "seconds": 1.01
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 2272,
+   "copernicus": "Damaged",
+   "ai": "standing",
+   "answer": "standing\n\nThe structures in both images remain intact with no visible collapse, even though the second image is heavily pixelated; there\u2019s no evidence of roof failure or structural disintegration that would indicate \u201ccollapsed\u201d or \u201cdamaged,\u201d so \u201cstanding\u201d fits best despite reduced clarity.",
+   "seconds": 1.84
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 2145,
+   "copernicus": "Damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nIn the before image, the structure displays a clear rectangular roofline with intact walls, while the after image shows debris scattered around the building's base and fragmented wall sections, indicating structural failure rather than mere partial damage.",
+   "seconds": 1.58
+  },
+  {
+   "region": "Adiyaman",
+   "feature_index": 194,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nIn the second image (after), most buildings show significantly more debris on their roofs and some are visibly missing their top structures, suggesting partial or total collapse from structural failure.",
+   "seconds": 1.31
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 764,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe roof has caved in on itself.",
+   "seconds": 0.65
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3613,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe left image shows the building's roof intact while the right image shows it missing entirely, indicating it has fallen.",
+   "seconds": 1.02
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3229,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe structure is reduced to a pile of rubble in the second image, with no intact walls or roof visible, which indicates total collapse rather than mere damage.",
+   "seconds": 1.23
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 214,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "Collapsed. The buildings in the second image show widespread structural failure and rubble instead of intact roofs, consistent with a major earthquake event.",
+   "seconds": 1.05
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3202,
+   "copernicus": "Damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe image sequence reveals that this once-standtall structure, with its clear grid of rectangular windows and red tiled roof, is now reduced to a flat, rubble-strewn pile of debris, indicating it has fallen apart due to structural failure from seismic activity.",
+   "seconds": 1.82
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3224,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe left image shows a densely built urban area with intact structures, while the right reveals widespread destruction \u2014 collapsed roofs, debris-filled streets, and missing buildings \u2014 indicating significant structural failure after an earthquake.",
+   "seconds": 1.48
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3208,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe rooflines are jagged and broken with scattered debris in the second image, whereas buildings appear intact with continuous lines in the first.",
+   "seconds": 1.16
+  },
+  {
+   "region": "Antakya",
+   "feature_index": 3175,
+   "copernicus": "Damaged",
+   "ai": "damaged",
+   "answer": "damaged\n\nThe first image shows a clearly intact building with a full red-tiled roof, while the second reveals partial collapse of that roof structure, exposing the interior and indicating severe structural damage rather than total destruction or preservation.",
+   "seconds": 1.56
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 8352,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe first image shows intact buildings with uniform roof structures, while the second reveals a prominent dome partially buried in rubble, surrounded by debris and disrupted architecture \u2014 clear evidence of structural collapse following seismic activity.",
+   "seconds": 1.48
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 7240,
+   "copernicus": "No visible damage",
+   "ai": "damaged",
+   "answer": "Damaged. The buildings in the second image show visible structural deformation and misalignment compared to their orderly arrangement in the first image.",
+   "seconds": 1.03
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 5410,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe left image shows intact structures with clear roof lines and orderly windows. In contrast, the right image displays severe structural damage: roofs are partially missing or collapsed onto lower levels, walls are cracked and leaning, and internal rooms appear exposed \u2014 all indicative of significant seismic shaking that has compromised building integrity.",
+   "seconds": 1.98
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 7140,
+   "copernicus": "No visible damage",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe image displays a highly fragmented, irregular pattern with numerous diagonal cracks running across the structures. This type of extensive fracturing is characteristic of buildings that have sustained catastrophic structural failure and are in the process of or have undergone complete collapse, rather than just minor localized damage from seismic activity.",
+   "seconds": 1.9
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 8938,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nIn image 2 the right\u2011hand portion of the building is no longer present\u2014the ground there shows rubble\u2014so part has fallen down; in image 1 that same part stands intact with windows and roof visible.",
+   "seconds": 1.55
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 3556,
+   "copernicus": "Possibly damaged",
+   "ai": "standing",
+   "answer": "standing\n\nThe image shows that although there are visible signs of damage such as cracks on some walls and structural instability around certain buildings (like the one labeled \"364\"), most structures in the area appear to remain standing without total collapse. The field at the bottom left remains intact, suggesting minimal overall destruction despite localized effects from seismic activity or landslides potentially caused by it.",
+   "seconds": 2.37
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 5887,
+   "copernicus": "Possibly damaged",
+   "ai": "standing",
+   "answer": "standing\n\nThe buildings are in the same position and shape, with no visible signs of damage such as cracks or displacement.",
+   "seconds": 1.01
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 3555,
+   "copernicus": "Possibly damaged",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe image on the right shows a large pile of rubble in the location where buildings once stood, indicating that structures have been destroyed by the earthquake, not merely damaged or still standing.",
+   "seconds": 1.37
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 8953,
+   "copernicus": "Destroyed",
+   "ai": "damaged",
+   "answer": "damaged\nThe building\u2019s roof has partially collapsed, with debris scattered around its base in the second image.",
+   "seconds": 1.0
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 5888,
+   "copernicus": "Destroyed",
+   "ai": "collapsed",
+   "answer": "collapsed\n\nThe buildings are no longer vertical in the post-quake image, with sections tilted and falling into adjacent open areas, which is the visual signature of structural failure.",
+   "seconds": 1.29
+  },
+  {
+   "region": "Gaziantep",
+   "feature_index": 3408,
+   "copernicus": "Destroyed",
+   "ai": "standing",
+   "answer": "standing\n\nThe building's structure remains intact with no visible signs of deformation or collapse, indicating it has not been significantly affected by the earthquake.",
+   "seconds": 1.12
+  }
+ ]
+}
