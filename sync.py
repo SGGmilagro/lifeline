@@ -58,6 +58,9 @@ def chat_commands():
     return msgs
 
 
+REPORT = re.compile(r"(?i)^\s*(?:@\w+\s+)?report\s+(?:building\s*)?(b-?\d{1,2}|\d{1,2})\b[\s:,-]*(.*)$")
+
+
 def apply_commands(c):
     msgs = chat_commands()
     if not SEEN.exists():          # first run after a reset: never replay old chat history
@@ -68,6 +71,11 @@ def apply_commands(c):
         if mid in seen:
             continue
         seen.add(mid)
+        rep = REPORT.match(text)
+        if rep:
+            r = c.post(f"{TOOLBOX}/report", params={"site": rep.group(1), "text": rep.group(2) or "sign of life"})
+            print(f"chat report '{text}': {r.json()['result']}")
+            continue
         m = CMD.match(text)
         if not m:
             continue

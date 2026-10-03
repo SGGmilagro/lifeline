@@ -300,6 +300,11 @@ def scan(site: str):
     return {"result": engine.request_scan(site)}
 
 
+@app.post("/report")
+def report(site: str, text: str = "sign of life"):
+    return {"result": engine.report(site, text)}
+
+
 @app.post("/delivered")
 def delivered(ids: str):
     engine.mark_delivered({int(i) for i in ids.split(",") if i.strip()})

@@ -18,6 +18,8 @@ import math
 import os
 import re
 import threading
+
+from routing import SPEED_M_PER_MIN, plan
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -53,6 +55,36 @@ CONFIRM_GAP_S = 20          # two scans this far apart also confirm
 ESCALATE_BPM = 10           # breathing below this escalates
 ESCALATE_DROP = 0.30        # or a drop of 30% ...
 ESCALATE_WINDOW_S = 120     # ... within 2 minutes
+# Occupancy estimate: footprint x built share x floors / floor area per person x time-of-day factor.
+# Deterministic and labeled "estimate, not a count". Never produced by the AI.
+M2_PER_PERSON = 30          # residential floor area per occupant (documented assumption)
+BLOCK_BUILT_SHARE = 0.5     # Copernicus "building block" polygons include courtyards and gaps
+DEFAULT_FLOORS = 4
+TRAPPED_SHARE = {3: 0.5, 2: 0.15, 1: 0.03, 0: 0.01}   # share of occupants likely trapped, by grade (assumption)
+
+
+def occupancy(site, live=False):
+    fp = site.get("footprint_m2")
+    if fp is None:
+        return None, "no footprint mapped, no estimate"
+    floors = site.get("levels")
+    assumed = []
+    if not floors:
+        floors = DEFAULT_FLOORS
+        assumed.append(f"{DEFAULT_FLOORS} floors assumed")
+    built = BLOCK_BUILT_SHARE if site.get("notation") == "Building block" else 1.0
+    residential = site.get("building_use", "").lower().startswith("residential")
+    if live:
+        factor, when = 0.3, "daytime venue"
+    else:
+        factor, when = (1.0, "residential at 04:17") if residential else (0.1, "non-residential at night")
+    est = round(fp * built * floors / M2_PER_PERSON * factor)
+    reason = (f"{fp:,} m² footprint" + (f" x {built:.0%} built" if built < 1 else "") +
+              f" x {floors} floors / {M2_PER_PERSON} m² per person x {factor} ({when})" +
+              (f"; {', '.join(assumed)}" if assumed else ""))
+    return est, reason
+
+
 HELP_TEXT = """👋 LIFELINE · earthquake rescue desk
 
 I rank collapsed buildings using satellite damage maps, track your 3 rescue teams, and alert you when sensors pick up someone alive. You decide every move.
@@ -63,6 +95,7 @@ Send me:
 • ack 5 → approve what I proposed for Building 5
 • ack all → approve everything waiting
 • scan 7 → ask for a team at Building 7
+• report 7 tapping heard → a sign of life at Building 7 (two reports 20 s apart confirm it)
 • go Malatya → switch city (Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep)\n• go live → our own building, with the live WiFi sensor in this room
 
 🟢 survivor confirmed · 🟡 possible survivor · 🚨 getting weaker · ⚪ no signal yet (people may still be inside)
@@ -192,24 +225,42 @@ class Engine:
 
     # ---------- dispatch ----------
     def _propose(self):
-        """Greedy: highest-priority unsearched site gets the nearest free team. Needs ack."""
+        """Re-plan with OR-Tools (routing.py), then propose each free
+        team's first stop. Every dispatch still needs the commander's ack."""
         st = self.state
-        busy = {t for t in st["proposals"].values()} | {t for t, v in st["teams"].items() if v["site"]}
-        free = [t for t in TEAMS if t not in busy]
-        for row in self.ranked():
-            if not free:
-                break
-            sid = row["id"]
-            if st["sites"][sid]["status"] != "unsearched" or sid in st["proposals"]:
+        hours = self.hours_since_collapse()
+        claimed = set(st["proposals"])
+        open_sites = []
+        for sid, ss in st["sites"].items():
+            if ss["team"] or sid in claimed or ss["status"] not in ("unsearched", "possible_survivor", "confirmed_survivor"):
                 continue
+            score, _ = self.score(sid, hours)
             site = self.sites[sid]
-            team = min(free, key=lambda t: dist_m((st["teams"][t]["lat"], st["teams"][t]["lon"]),
-                                                   (site["lat"], site["lon"])))
-            free.remove(team)
-            st["proposals"][sid] = team
+            occ, _ = occupancy(site, self.meta.get("live"))
+            # Weight = people likely trapped (occupancy estimate x trapped share by grade), decaying with time;
+            # a reported or sensed survivor outranks everything.
+            trapped = (occ if occ is not None else score * 200) * TRAPPED_SHARE.get(site["grade"], 0.01)
+            bonus = 100000 if ss["escalated"] else 50000 if ss["status"] == "confirmed_survivor" else \
+                30000 if ss["status"] == "possible_survivor" else 0
+            open_sites.append({"id": sid, "lat": site["lat"], "lon": site["lon"], "grade": site["grade"],
+                               "weight": bonus + int(trapped * 10 * 0.5 ** (hours / 48)) + 1})
+        teams = []
+        for t, v in st["teams"].items():
+            at = next((sid for sid, tm in st["proposals"].items() if tm == t), None)   # heading to a proposal
+            pos = (self.sites[at]["lat"], self.sites[at]["lon"]) if at else (v["lat"], v["lon"])
+            teams.append({"id": t, "lat": pos[0], "lon": pos[1]})
+        routes, eta = plan(teams, open_sites)
+        st["routes"], st["eta"] = routes, eta
+        busy = set(st["proposals"].values()) | {t for t, v in st["teams"].items() if v["site"]}
+        prio = {r["id"]: r["priority"] for r in self.ranked()}
+        for t in TEAMS:
+            if t in busy or not routes.get(t):
+                continue
+            sid = routes[t][0]
+            st["proposals"][sid] = t
             self._alert("dispatch_proposal", sid,
-                        f"Proposed: Team {team} to {sid} (priority {row['priority']}, "
-                        f"{site['grade_label']}). Reply \"ack {sid}\" to dispatch.")
+                        f"Proposed: Team {t} to {sid} (priority {prio.get(sid)}, {self.sites[sid]['grade_label']}, "
+                        f"first stop on its optimised route). Reply \"ack {sid}\" to dispatch.")
 
     def ack(self, target):
         """Commander approval for one site or 'all'. Returns what changed."""
@@ -261,6 +312,33 @@ class Engine:
             self._save()
             return f"Proposed Team {team} to {sid}, awaiting ack"
 
+    # ---------- human reports ----------
+    def report(self, target, text):
+        """A sign-of-life report typed in the group: 'report 7 tapping heard'. Nothing simulated."""
+        with self.lock:
+            sid = norm_site(target)
+            ss = self.state["sites"].get(sid)
+            if ss is None:
+                return f"Unknown building {target}"
+            now = time.time()
+            low = text.lower()
+            if any(w in low for w in ("silence", "nothing", "no sound", "quiet")):
+                self._alert("report_silence", sid, f"Report at {sid}: {text}. Silence does not mean nobody is inside.",
+                            text=text)
+                self._save()
+                return friendly(f"Silence report logged for {sid}. It does not mean nobody is inside.")
+            hit = {"site_id": sid, "sensor_id": f"report-{len(ss['detections']) + 1}", "tick": self.state["last_tick"],
+                   "presence": True, "breathing_bpm": None, "moving": False, "confidence": None,
+                   "source": "human report"}
+            self._alert("report", sid, f"Report at {sid}: {text}", note=text)
+            self._detect(sid, ss, [hit], now, by_report=True)
+            # New sign of life: drop un-acked dispatch proposals and re-plan every team around it.
+            self.state["proposals"] = {}
+            self._alert("replan", sid, f"Routes re-planned around {sid}.")
+            self._propose()
+            self._save()
+            return friendly(f"Report logged for {sid} ({len(ss['detections'])} so far).")
+
     # ---------- sensors ----------
     def tick(self):
         """Process a new sensor tick if there is one. Called every 2 s by the toolbox."""
@@ -300,7 +378,7 @@ class Engine:
             self._propose()
             self._save()
 
-    def _detect(self, sid, ss, hits, now):
+    def _detect(self, sid, ss, hits, now, by_report=False):
         st = self.state
         for r in hits:
             ss["detections"].append({"sensor_id": r["sensor_id"], "tick": r["tick"], "real_time": now,
@@ -312,7 +390,7 @@ class Engine:
         ss["moving"] = any(r["moving"] for r in hits)
         ss["source"] = "+".join(sorted({r["source"] for r in hits} | set(filter(None, [ss["source"]]))))
 
-        sensors = {d["sensor_id"] for d in ss["detections"]}
+        sensors = {d["sensor_id"] for d in ss["detections"] if not d["sensor_id"].startswith("report-")}
         times = [d["real_time"] for d in ss["detections"]]
         confirmed = len(sensors) >= 2 or (max(times) - min(times) >= CONFIRM_GAP_S)
         new_status = "confirmed_survivor" if confirmed else "possible_survivor"
@@ -389,6 +467,8 @@ class Engine:
                 sites.append({**row, "name": self.sites[sid]["name"],
                               "grade_label": self.sites[sid]["grade_label"], "status": ss["status"],
                               "escalated": ss["escalated"],
+                              "expected_occupants": occupancy(self.sites[sid], self.meta.get("live"))[0],
+                              "occupancy_reason": occupancy(self.sites[sid], self.meta.get("live"))[1],
                               "team": ss["team"] or st["proposals"].get(sid),
                               "team_state": "on_site" if ss["team"] else
                                             "awaiting_ack" if sid in st["proposals"] else None})
@@ -401,6 +481,7 @@ class Engine:
                 "counters": self.counters(),
                 "sites_ranked": sites,
                 "people": self.people(),
+                "routes": st.get("routes", {}),
                 "new_alerts": [{k: a.get(k, {}) for k in ("id", "type", "site_id", "text", "data")}
                                for a in st["alerts"] if not a["delivered"]],
                 "awaiting_ack": list(dict.fromkeys(list(st["proposals"]) + st["survivor_ack"])),
@@ -430,7 +511,7 @@ class Engine:
 
     # Pre-rendered Telegram text, so every number the agent posts comes straight from the engine.
     # Written for a commander reading on a phone: short lines, one emoji per kind of event.
-    FOOTER = "Simulated sensors · Copernicus satellite damage data · runs only on this machine"
+    FOOTER = "Signs of life: human reports + sensors (simulated where marked) · Copernicus satellite damage data · runs only on this machine"
 
     @property
     def footer(self):
@@ -445,7 +526,8 @@ class Engine:
 
     @staticmethod
     def _src(source):
-        names = {"replay": "replay", "ruview-sim": "RuView sim", "ruview-rssi-live": "live WiFi in this room"}
+        names = {"replay": "replay", "ruview-sim": "RuView sim", "ruview-rssi-live": "live WiFi in this room",
+                 "human report": "human report"}
         return " + ".join(names.get(x, x) for x in (source or "").split("+") if x)
 
     def _decisions(self, b):
@@ -481,9 +563,11 @@ class Engine:
             what = f"Team {team} ready, needs your ack"
         else:
             what = "no team yet"
+        occ = s.get("expected_occupants")
+        people = f" · ~{occ:,} people (est.)" if occ else ""
         if self.meta.get("live"):
-            return f"{s['priority']}. {s['id']} · {self.kind(s['id'])} · {what}"
-        return f"{s['priority']}. {s['id']} · {s['grade_label'].lower()} {self.kind(s['id'])} · {what}"
+            return f"{s['priority']}. {s['id']} · {self.kind(s['id'])}{people} · {what}"
+        return f"{s['priority']}. {s['id']} · {s['grade_label'].lower()} {self.kind(s['id'])}{people} · {what}"
 
     def _render_status(self, b):
         c = b["counters"]
@@ -491,6 +575,9 @@ class Engine:
              f"Teams out {c['teams_deployed']}/3 · Survivors {c['survivors_confirmed']} · Sites {c['sites_ranked']}",
              "", "WHERE TO DIG"]
         L += [self._site_line(s) for s in b["sites_ranked"][:5]]
+        if b.get("routes") and any(b["routes"].values()):
+            L += ["", "PLAN (OR-Tools, straight-line)"]
+            L += [f"Team {t}: " + " → ".join(r[:4]) + (" …" if len(r) > 4 else "") for t, r in b["routes"].items() if r]
         L += self._decisions(b)
         L += ["", "Send help for all commands.", self.footer]
         return "\n".join(L)
@@ -526,6 +613,10 @@ class Engine:
             by.setdefault(a["type"], []).append(a)
         for a in by.get("region", []):
             L += ["", f"🗺️ Now working on {self.region_name}. Replay restarted at 04:17."]
+        for a in by.get("report", []):
+            L += ["", f"📣 Report at {a['site_id']}: {a['data'].get('note', '')}"]
+        for a in by.get("report_silence", []):
+            L += ["", f"🔇 Silence reported at {a['site_id']}. That does not mean nobody is inside."]
         for a in by.get("escalation", []):
             d = a["data"]
             L += ["", f"🚨 URGENT {a['site_id']}: breathing dropped to {d['bpm']}/min (was {d['peak']}).",
@@ -533,14 +624,18 @@ class Engine:
         for a in by.get("confirmed_survivor", []):
             d = a["data"]
             br = f"breathing {d['bpm']}/min" if d.get("bpm") is not None else "breathing not measured"
+            src = self._src(d.get("source"))
+            how = "2 reports 20 s apart" if src == "human report" else f"2 sensors agree ({src})"
             L += ["", f"🟢 SURVIVOR CONFIRMED at {a['site_id']}",
-                  f"{br.capitalize()}, {'moving' if d.get('moving') else 'not moving'}. "
-                  f"2 sensors agree ({self._src(d.get('source'))})."]
-        for a in by.get("possible_survivor", []):
+                  (f"{br.capitalize()}, {'moving' if d.get('moving') else 'not moving'}. " if src != "human report" else "")
+                  + f"{how}."]
+        confirmed_now = {a["site_id"] for a in by.get("confirmed_survivor", [])}
+        for a in [x for x in by.get("possible_survivor", []) if x["site_id"] not in confirmed_now]:
             d = a["data"]
             br = f"breathing {d['bpm']}/min" if d.get("bpm") is not None else "breathing not measured yet"
-            L += ["", f"🟡 Possible survivor at {a['site_id']}: {br}. "
-                      f"1 sensor ({self._src(d.get('source'))}), checking again."]
+            src = self._src(d.get("source"))
+            L += ["", f"🟡 Possible survivor at {a['site_id']}" + (f": {br}. 1 sensor ({src}), checking again."
+                  if src != "human report" else ": 1 report so far. A second report 20 s later confirms.")]
         if by.get("dispatched"):
             L += ["", "🚑 " + ", ".join(f"Team {a['data']['team']} now at {a['site_id']}" for a in by["dispatched"])]
         if by.get("ack_survivor"):
@@ -549,6 +644,9 @@ class Engine:
             ids = ", ".join(a["site_id"] for a in by["no_signal"])
             L += ["", f"⚪ No signal yet at {ids}. People may still be inside.",
                   "Teams move to the next building."]
+        if by.get("replan") and b.get("routes"):
+            L += ["", "🧭 NEW PLAN (OR-Tools re-solved)"]
+            L += [f"Team {t}: " + " → ".join(r[:3]) + (" …" if len(r) > 3 else "") for t, r in b["routes"].items() if r]
         L += self._decisions(b)
         L += ["", self.footer]
         return "\n".join(L)
@@ -576,11 +674,13 @@ class Engine:
                 "live": bool(self.meta.get("live")),
                 "sites": [{"id": sid, "lat": s["lat"], "lon": s["lon"], "status": st["sites"][sid]["status"],
                            "outline": s.get("outline"),
+                           "expected_occupants": occupancy(s, self.meta.get("live"))[0],
                            "priority": prio[sid], "grade_label": s["grade_label"],
                            "escalated": st["sites"][sid]["escalated"],
                            "proposed_team": st["proposals"].get(sid)} for sid, s in self.sites.items()],
-                "teams": [{"id": t, "lat": v["lat"], "lon": v["lon"], "site": v["site"]}
-                          for t, v in st["teams"].items()],
+                "teams": [{"id": t, "lat": v["lat"], "lon": v["lon"], "site": v["site"],
+                           "route": st.get("routes", {}).get(t, [])} for t, v in st["teams"].items()],
+                "routing": f"OR-Tools VRP, straight-line distances, {SPEED_M_PER_MIN * 60 // 1000} km/h assumed",
                 "people": [{"site_id": p["site_id"], "breathing_bpm": p["breathing_bpm"],
                             "status": p["status"]} for p in self.people()],
                 "awaiting_ack": list(dict.fromkeys(list(st["proposals"]) + st["survivor_ack"])),

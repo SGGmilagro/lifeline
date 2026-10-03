@@ -5,7 +5,8 @@ After an earthquake it ranks collapsed buildings by how likely they are to hold 
 proposes rescue-team dispatches for the commander to approve, reads life-sign sensors at each
 site, escalates on its own when a survivor's breathing weakens, and re-ranks after every scan.
 
-> Satellites tell you which building. WiFi tells you who is alive inside.
+> Satellites tell you which building. The building tells you how many. The optimiser tells you
+> who goes first. People and sensors tell you who is alive.
 
 ## Honesty lines
 
@@ -55,6 +56,29 @@ still (four of us sitting next to it read 0.9-1.4 dB^2, "no movement"), and neve
 breathing. RuView's default threshold (0.5 dB^2) fires constantly here, so `LIFELINE_LIVE_VAR=2.0`
 means "someone is moving nearby". Counting people and breathing needs CSI sensors (ESP32-S3).
 In the live region, Building 1 (our venue) reads this sensor; the team keeps scanning.
+
+## Who goes first: OR-Tools routing (routing.py)
+
+Built on our own OR-Tools vehicle-routing model: RoutingIndexManager / RoutingModel, distance arc cost, Time dimension with service time per stop, PATH_CHEAPEST_ARC +
+GUIDED_LOCAL_SEARCH. For rescue: vehicles are teams T1-T3 starting where they are (open routes),
+service time by grade (90/45/20 min), objective = distance + weight x arrival minutes, where
+weight = people likely trapped (occupancy estimate x trapped share 50/15/3% by grade, decaying
+with time) and a reported or sensed survivor outranks everything. Re-solved (1 s) on every sensor
+tick and every report; each free team's first stop becomes a proposal that needs the commander's
+ack. Straight-line distances, 15 km/h assumed, no road network.
+
+## How many: occupancy estimate (engine.py `occupancy`)
+
+footprint x built share (0.5 for Copernicus "building block" polygons) x floors (4 assumed when
+unknown) / 30 m2 per person x night factor (1.0 residential at 04:17, 0.1 non-residential).
+Deterministic, labeled "estimate, not a count". The AI never produces it.
+
+## Signs of life: reports
+
+`report 7 tapping heard` in the group. One report: possible survivor. Two reports at least 20 s
+apart: confirmed (the chat log does not carry the sender's identity, so two different people
+cannot be verified). A report drops un-acked proposals and re-plans all teams around that building.
+`report 7 silence` is logged and never means the building is empty.
 
 ## Ranking (engine.py)
 
@@ -129,6 +153,18 @@ nemoclaw my-assistant upload skill/playbook.md  /sandbox/.openclaw/workspace/ski
 ```
 
 Originals of the sandbox workspace files are in `demo/backup/`.
+
+## Demo script v3 (3 minutes): pivot-lite
+
+1. Pitch the 40-hour problem. Dashboard on Malatya: ~people per building (estimate), three OR-Tools
+   routes drawn. Swipe before/after on the map.
+2. The agent has posted the plan on its own. Commander: `ack all`.
+3. Teammate: `report 8 tapping heard`; 20 s later another: `report 8 voice heard`.
+   🟢 CONFIRMED, 🧭 NEW PLAN: a team's route redraws to Building 8. Commander: `ack 8`.
+4. Judge: "Is Building 12 empty?" The agent refuses to call it empty.
+5. `go live`: our own building on 2025 aerial imagery, the live WiFi radar. A judge walks past.
+6. `./leak_test.sh`: refused, DENIED by OpenShell. `nvidia-smi`: local GPU.
+7. Close with the line above.
 
 ## Demo script v2 (3 minutes): replay, then live
 

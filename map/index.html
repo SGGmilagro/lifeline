@@ -114,7 +114,7 @@
   <div class="stat"><b id="teams">–</b><span>teams out</span></div>
   <div class="stat"><b id="surv">–</b><span>survivors</span></div>
   <div class="stat"><b>40 h</b><span>first official map, 2023</span></div>
-  <div class="badges"><span class="badge">SENSORS SIMULATED</span><span class="badge ok">ALL AI ON THIS GB10</span></div>
+  <div class="badges"><span class="badge">SIMULATED SENSORS MARKED</span><span class="badge ok">ALL AI ON THIS GB10</span></div>
 </header>
 <main>
   <div id="mapwrap"><div id="map"></div>
@@ -129,7 +129,8 @@
         through the room bends the radio waves; RuView's classifier turns that into "movement".</div></div>
     <div id="help"><b>How to read this map</b> Each dot is a building graded from satellite photos.
       Red = destroyed, amber = damaged, grey = possibly damaged. Green pulsing = someone alive.
-      White labels = rescue teams. Click a building for its satellite photos.</div>
+      White labels = rescue teams; dashed lines = each team's optimised route (OR-Tools, straight-line).
+      Click a building for its satellite photos and occupancy estimate.</div>
   </div>
   <aside>
     <section>
@@ -298,6 +299,16 @@ function render(d) {
     L.marker([s.lat, s.lon], { interactive:false,
       icon: L.divIcon({ className:'lbl', html:String(parseInt(s.id.slice(2), 10)), iconAnchor:[-10, 6] }) }).addTo(layers);
   }
+  const TEAMCOL = { T1:'#ff7b72', T2:'#79c0ff', T3:'#d2a8ff' };
+  const at = Object.fromEntries(d.sites.map(s => [s.id, [s.lat, s.lon]]));
+  for (const t of d.teams) {
+    const path = [[t.lat, t.lon]].concat((t.route || []).map(id => at[id]).filter(Boolean));
+    if (path.length > 1) {
+      L.polyline(path, { color:TEAMCOL[t.id], weight:4, opacity:.9, dashArray:'10 7' }).addTo(layers)
+        .bindTooltip(`${team(t.id)} route (OR-Tools): ` + t.route.map(name).join(' → '));
+      L.circleMarker(path[1], { radius:15, color:TEAMCOL[t.id], weight:3, fill:false }).addTo(layers);
+    }
+  }
   for (const t of d.teams)
     L.marker([t.lat, t.lon], { icon: L.divIcon({ className:'team', html:team(t.id), iconSize:[52,18], iconAnchor:[26,28] }) })
       .bindTooltip(t.site ? `${team(t.id)} at ${name(t.site)}` : `${team(t.id)} free`).addTo(layers);
@@ -321,7 +332,7 @@ function render(d) {
   $('list').innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
     `<div class="row clickable" onclick="select('${s.id}')"><span class="p">${s.priority}</span>` +
     `<span class="dot" style="background:${color(s)}"></span><span class="id" style="width:84px">${name(s.id)}</span>` +
-    `<span class="st">${s.grade_label}${s.escalated ? ' · 🚨 weakening' : ' · ' + STATUS[s.status]}</span></div>`).join('');
+    `<span class="st">${s.grade_label}${s.expected_occupants ? ' · ~' + s.expected_occupants.toLocaleString() + ' ppl' : ''}${s.escalated ? ' · 🚨 weakening' : ' · ' + STATUS[s.status]}</span></div>`).join('');
   if (selected) refreshDetail(false);
 }
 
@@ -337,6 +348,7 @@ async function refreshDetail(full) {
       <dt>Damage</dt><dd>${esc(s.grade_label)} <span class="muted">${last && last.live ? '(live drill, no damage data)' : '(Copernicus, satellite)'}</span></dd>
       <dt>Use</dt><dd>${esc(s.building_use)}</dd>
       <dt>Footprint</dt><dd>${s.footprint_m2 == null ? 'not mapped' : s.footprint_m2.toLocaleString() + ' m²'}</dd>
+      <dt>People inside</dt><dd>${pr && pr.expected_occupants != null ? '~' + pr.expected_occupants.toLocaleString() + ' <span class="muted">(estimate, not a count)</span>' : '–'}</dd>
       <dt>Status</dt><dd>${STATUS[st.status]}${st.escalated ? ' · 🚨 weakening' : ''}</dd>
       <dt>Team</dt><dd>${st.team ? team(st.team) : '–'}</dd>
       <dt>Scans</dt><dd>${st.scans}</dd></dl>`;
