@@ -4,5 +4,5 @@ cd "$(dirname "$0")"
 .venv/bin/python replay_sensors.py --reset
 curl -s -X POST http://127.0.0.1:8090/reset && echo
 nemoclaw "${LIFELINE_SANDBOX:-my-assistant}" exec -- sh -c ': > /sandbox/.openclaw/workspace/skills/lifeline/commands.txt; : > /sandbox/.openclaw/workspace/sandbox/.openclaw/workspace/skills/lifeline/commands.txt' >/dev/null 2>&1
-rm -f data/commands_offset
+rm -f data/commands_offset data/commands_seen.json
 echo "replay reset to 04:17"

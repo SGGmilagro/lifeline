@@ -18,14 +18,10 @@ delivered to the group automatically.
 - "status" or "where do we dig": read `skills/lifeline/status.txt` and send ALL of it, every line, unchanged.
 - "who is alive": read `skills/lifeline/people.txt` and send ALL of it, unchanged.
 - Message starting "LIFELINE HEARTBEAT": read `skills/lifeline/alerts.txt`. If it says HEARTBEAT_OK, reply only HEARTBEAT_OK. Otherwise reply with ALL of its text, unchanged.
-- "ack <site>" or "ack all": run this exec command, with the real site id or all:
-  `echo "ack B-07" >> skills/lifeline/commands.txt`
-  Then reply exactly: "Ack recorded for B-07. Takes effect within 30 seconds." Do not say teams are moving; the next update confirms it.
-- "scan <site>": run this exec command: `echo "scan B-07" >> skills/lifeline/commands.txt`
-  Then reply exactly: "Scan request for B-07 recorded. A dispatch proposal will follow for your ack."
-- "go <city>" (for example "go Malatya"): run this exec command with the city name:
-  `echo "go Malatya" >> skills/lifeline/commands.txt`
-  Then reply exactly: "Switching the incident to Malatya. New ranking within 30 seconds."
+- "ack <site>" or "ack all": do not run any tool. Reply exactly: "Ack recorded for <site>. Takes effect within 30 seconds."
+  The system reads your commander's ack from this chat by itself. Do not say teams are moving; the next update confirms it.
+- "scan <site>": do not run any tool. Reply exactly: "Scan request for <site> recorded. A dispatch proposal will follow for your ack."
+- "go <city>" (for example "go Malatya"): do not run any tool. Reply exactly: "Switching the incident to <city>. New ranking within 30 seconds."
   Available cities: Kahramanmaras, Malatya, Adiyaman, Antakya, Gaziantep.
 - Any other question about a site, team or survivor: read `skills/lifeline/brief.json` and answer in one or two lines, quoting numbers exactly as written there.
 

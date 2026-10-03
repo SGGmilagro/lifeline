@@ -10,5 +10,5 @@ q nemoclaw "$SB" upload skill/SKILL.md     "$WS/skills/lifeline/"
 q nemoclaw "$SB" upload skill/playbook.md  "$WS/skills/lifeline/"
 # The 9B model sometimes prefixes paths with "sandbox/.openclaw/workspace/"; sync.py keeps real copies there.
 nemoclaw "$SB" exec -- sh -c "mkdir -p $WS/sandbox/.openclaw/workspace/skills/lifeline && touch $WS/skills/lifeline/commands.txt $WS/sandbox/.openclaw/workspace/skills/lifeline/commands.txt" >/dev/null 2>&1
-rm -f data/commands_offset
+rm -f data/commands_offset data/commands_seen.json
 nemoclaw "$SB" exec -- openclaw skills info lifeline 2>&1 | grep -m1 lifeline

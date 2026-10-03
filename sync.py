@@ -1,6 +1,6 @@
 """One loop cycle: host toolbox <-> OpenClaw sandbox. Run by run_loop.sh every 30 s.
 
-1. Download the commander's acks/scans the agent recorded (commands.txt) and apply them.
+1. Read the commander's commands (ack / scan / go) from the Telegram chat transcript and apply them.
 2. GET /brief and write brief.json, status.txt, people.txt, alerts.txt.
 3. Upload those files into the sandbox skill folder.
 4. If there are new alerts, wake the agent ("LIFELINE HEARTBEAT") so it posts them to
@@ -19,11 +19,10 @@ import httpx
 
 ROOT = Path(__file__).parent
 OUT = ROOT / "demo" / "out"
-OFFSET = ROOT / "data" / "commands_offset"
 SANDBOX = os.environ.get("LIFELINE_SANDBOX", "my-assistant")
 SKILL_DIR = "/sandbox/.openclaw/workspace/skills/lifeline/"
 # The 9B model sometimes prefixes relative paths with "sandbox/.openclaw/workspace/". We keep real
-# copies there too (a symlink would block NemoClaw snapshots), and read acks from both places.
+# copies there too (a symlink would block NemoClaw snapshots).
 ALT_DIR = "/sandbox/.openclaw/workspace/sandbox/.openclaw/workspace/skills/lifeline/"
 TOOLBOX = "http://127.0.0.1:8090"
 CHAT_ID = os.environ.get("LIFELINE_CHAT_ID")      # Telegram group id; unset = print only
@@ -34,30 +33,55 @@ def nemoclaw(*args, timeout=60):
     return r.returncode, r.stdout
 
 
+SESSIONS = "/sandbox/.openclaw/agents/main/sessions"
+SEEN = ROOT / "data" / "commands_seen.json"
+CMD = re.compile(r"(?i)^\s*(?:@\w+\s+)?(ack|scan|go)\s+([A-Za-zçğıöşüÇĞİÖŞÜ]+|B-\d{2})\s*$")
+
+
+def chat_commands():
+    """Commander messages from the Telegram chat transcripts in the sandbox (not our own test or
+    heartbeat sessions). Reading the chat directly makes every ack take effect even when the
+    9B model fumbles a tool call."""
+    code, out = nemoclaw("exec", "--", "sh", "-c",
+                         f"cd {SESSIONS} && ls *.jsonl 2>/dev/null | grep -v -e '^lifeline-' -e trajectory "
+                         f"| xargs -r grep -h '\"role\":\"user\"' || true", timeout=60)
+    msgs = []
+    for line in out.splitlines():
+        try:
+            m = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        content = m["message"]["content"]
+        if isinstance(content, list):
+            content = " ".join(p.get("text", "") for p in content if isinstance(p, dict))
+        msgs.append((m["id"], content.strip().splitlines()[-1] if content.strip() else ""))
+    return msgs
+
+
 def apply_commands(c):
-    lines = []
-    for d in (SKILL_DIR, ALT_DIR):
-        with tempfile.TemporaryDirectory() as tmp:
-            code, _ = nemoclaw("download", d + "commands.txt", tmp)
-            f = Path(tmp) / "commands.txt"
-            if code == 0 and f.exists():
-                lines += [l.strip() for l in f.read_text().splitlines() if l.strip()]
-    done = int(OFFSET.read_text()) if OFFSET.exists() else 0
-    for line in lines[done:]:
-        g = re.fullmatch(r"(?i)(?:go|region)\s+([A-Za-zçğıöşüÇĞİÖŞÜ]+)", line.strip(" '\""))
-        if g:
-            r = c.post(f"{TOOLBOX}/region", params={"name": g.group(1)})
-            print(f"command 'go {g.group(1)}': {r.json()['result']}")
+    msgs = chat_commands()
+    if not SEEN.exists():          # first run after a reset: never replay old chat history
+        SEEN.write_text(json.dumps([i for i, _ in msgs]))
+        return
+    seen = set(json.loads(SEEN.read_text()))
+    for mid, text in msgs:
+        if mid in seen:
             continue
-        # Accept "ack B-07", "scan B-07", "ack all"; a bare "B-07"/"all" from the agent means ack.
-        m = re.fullmatch(r"(?i)(ack|scan)?\s*(all|B-\d{2})", line.strip(" '\""))
-        if not m or (m.group(1) or "ack").lower() == "scan" and m.group(2).lower() == "all":
-            print(f"ignored command line: {line!r}")
+        seen.add(mid)
+        m = CMD.match(text)
+        if not m:
             continue
-        verb = (m.group(1) or "ack").lower()
-        r = c.post(f"{TOOLBOX}/{verb}", params={"site": m.group(2)})
-        print(f"command '{verb} {m.group(2)}': {r.json()['result']}")
-    OFFSET.write_text(str(len(lines)))
+        verb, arg = m.group(1).lower(), m.group(2)
+        if verb == "go":
+            r = c.post(f"{TOOLBOX}/region", params={"name": arg})
+        elif verb == "scan" and arg.lower() != "all":
+            r = c.post(f"{TOOLBOX}/scan", params={"site": arg})
+        elif verb == "ack":
+            r = c.post(f"{TOOLBOX}/ack", params={"site": arg})
+        else:
+            continue
+        print(f"chat command '{text}': {r.json()['result']}")
+    SEEN.write_text(json.dumps(sorted(seen)))
 
 
 def main():
