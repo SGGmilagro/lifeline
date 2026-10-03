@@ -89,9 +89,9 @@ class Engine:
     def _save(self):
         write_atomic(STATE_FILE, self.state)
 
-    def _alert(self, type_, site_id, text):
+    def _alert(self, type_, site_id, text, **data):
         st = self.state
-        st["alerts"].append({"id": st["next_alert"], "type": type_, "site_id": site_id,
+        st["alerts"].append({"id": st["next_alert"], "type": type_, "site_id": site_id, "data": data,
                              "text": text, "delivered": False, "real_time": time.time()})
         st["next_alert"] += 1
 
@@ -169,7 +169,7 @@ class Engine:
                     st["teams"][team].update(site=sid, lat=site["lat"], lon=site["lon"])
                     st["sites"][sid].update(status="dispatched", team=team)
                     done.append(f"Team {team} dispatched to {sid}")
-                    self._alert("dispatched", sid, f"Commander ack received: Team {team} dispatched to {sid}.")
+                    self._alert("dispatched", sid, f"Commander ack received: Team {team} dispatched to {sid}.", team=team)
                 if sid in st["survivor_ack"]:
                     st["survivor_ack"].remove(sid)
                     done.append(f"Survivor alert at {sid} acknowledged")
@@ -238,7 +238,7 @@ class Engine:
                         st["teams"][team]["site"] = None
                         self._alert("no_signal", sid,
                                     f"{sid}: no signal after 2 scans. This does not mean nobody is inside. "
-                                    f"Team {team} free for the next site.")
+                                    f"Team {team} free for the next site.", team=team)
                     else:
                         ss["status"] = "scanning"
             self._propose()
@@ -267,7 +267,8 @@ class Engine:
                         f"{label} at {sid}: breathing {f'{bpm} bpm' if bpm is not None else 'not measured'}, "
                         f"{'moving' if ss['moving'] else 'not moving'}, "
                         f"{len(ss['detections'])} detections (sensor: {ss['source']}). "
-                        f"Reply \"ack {sid}\".")
+                        f"Reply \"ack {sid}\".", bpm=bpm, moving=ss["moving"],
+                        detections=len(ss["detections"]), source=ss["source"])
             if sid not in st["survivor_ack"]:
                 st["survivor_ack"].append(sid)
 
@@ -278,7 +279,7 @@ class Engine:
                 ss["escalated"] = True
                 self._alert("escalation", sid,
                             f"ESCALATED to priority 1: {sid} breathing fell to {bpm} bpm "
-                            f"(from {peak} in the last 2 min). Reply \"ack {sid}\" to send medical support.")
+                            f"(from {peak} in the last 2 min). Reply \"ack {sid}\" to send medical support.", bpm=bpm, peak=peak)
                 if sid not in st["survivor_ack"]:
                     st["survivor_ack"].append(sid)
 
@@ -343,7 +344,7 @@ class Engine:
                 "counters": self.counters(),
                 "sites_ranked": sites,
                 "people": self.people(),
-                "new_alerts": [{k: a[k] for k in ("id", "type", "site_id", "text")}
+                "new_alerts": [{k: a.get(k, {}) for k in ("id", "type", "site_id", "text", "data")}
                                for a in st["alerts"] if not a["delivered"]],
                 "awaiting_ack": list(dict.fromkeys(list(st["proposals"]) + st["survivor_ack"])),
                 "compute_device": "Dell Pro Max GB10 (local)",
@@ -358,57 +359,108 @@ class Engine:
             return out
 
     # Pre-rendered Telegram text, so every number the agent posts comes straight from the engine.
-    FOOTER = "Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine."
+    # Written for a commander reading on a phone: short lines, one emoji per kind of event.
+    FOOTER = "Simulated sensors · Copernicus satellite damage data · runs only on this machine"
 
-    def _ack_lines(self, b):
+    def _clock(self, b):
+        return f"{b['replay_clock'][5:16].replace('02-06', '6 Feb')} · {b['hours_since_collapse']}h after quake"
+
+    @staticmethod
+    def _src(source):
+        names = {"replay": "replay", "ruview-sim": "RuView sim"}
+        return " + ".join(names.get(x, x) for x in (source or "").split("+") if x)
+
+    def _decisions(self, b):
         st = self.state
-        lines = []
+        L = []
         for sid in b["awaiting_ack"]:
             if sid in st["proposals"]:
-                lines.append(f"NEEDS YOUR ACK: dispatch Team {st['proposals'][sid]} to {sid} (reply \"ack {sid}\")")
+                L.append(f"ack {sid} = send Team {st['proposals'][sid]}")
+            elif st["sites"][sid]["escalated"]:
+                L.append(f"ack {sid} = send medical support")
             else:
-                lines.append(f"NEEDS YOUR ACK: survivor at {sid} (reply \"ack {sid}\")")
-        return lines
+                L.append(f"ack {sid} = confirm survivor, start rescue")
+        if not L:
+            return []
+        if len(L) > 1:
+            L.append("or reply: ack all")
+        return ["", "👉 YOUR DECISION"] + L
+
+    def _site_line(self, s):
+        st = self.state["sites"][s["id"]]
+        team = s["team"]
+        if st["escalated"]:
+            what = f"🚨 survivor weakening, Team {team} there"
+        elif s["status"] == "confirmed_survivor":
+            what = f"🟢 survivor confirmed, Team {team} there"
+        elif s["status"] == "possible_survivor":
+            what = f"🟡 possible survivor, Team {team} checking"
+        elif s["status"] in ("dispatched", "scanning"):
+            what = f"Team {team} searching"
+        elif s["status"] == "no_signal_2_scans":
+            what = "no signal after 2 scans (people may still be inside)"
+        elif s["team_state"] == "awaiting_ack":
+            what = f"Team {team} ready, needs your ack"
+        else:
+            what = "no team yet"
+        size = f"{self.sites[s['id']]['footprint_m2']:,} m² block"
+        return f"{s['priority']}. {s['id']} {s['grade_label']}, {size} · {what}"
 
     def _render_status(self, b):
-        L = [f"LIFELINE | Kahramanmaras | replay +{b['hours_since_collapse']}h since 04:17", "TOP SITES"]
-        for s in b["sites_ranked"][:5]:
-            team = f"Team {s['team']} {'on site' if s['team_state'] == 'on_site' else 'proposed'}" \
-                if s["team"] else "no team"
-            why = s["reasons"][0] if s["status"].endswith("survivor") else s["reasons"][-1]
-            flag = "ESCALATED " if s["escalated"] else ""
-            L.append(f"{s['priority']}. {s['id']} | {s['grade_label']} | {'night, residential' if self.sites[s['id']]['building_use'].lower().startswith('residential') else 'non-residential'} | {flag}{s['status']} | {team} | why: {why}")
-        if b["people"]:
-            L.append(f"SIGNS OF LIFE (sensor: {b['people'][0]['source']})")
-            for p in b["people"]:
-                L.append(f"- {p['site_id']}: {breath(p)}, "
-                         f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
-                         f"{'CONFIRMED' if p['status'] == 'confirmed_survivor' else 'POSSIBLE'}")
-        else:
-            L.append("SIGNS OF LIFE: none detected yet (no signal is not the same as nobody)")
         c = b["counters"]
-        L.append(f"Teams deployed {c['teams_deployed']}/3 | survivors confirmed {c['survivors_confirmed']} | "
-                 f"no signal after 2 scans {c['no_signal_2_scans']}")
-        L += self._ack_lines(b)
-        L.append(self.FOOTER)
+        L = [f"LIFELINE · {self._clock(b)}",
+             f"Teams out {c['teams_deployed']}/3 · Survivors {c['survivors_confirmed']} · Sites {c['sites_ranked']}",
+             "", "WHERE TO DIG"]
+        L += [self._site_line(s) for s in b["sites_ranked"][:5]]
+        L += self._decisions(b)
+        L += ["", self.FOOTER]
         return "\n".join(L)
 
     def _render_people(self, b):
         if not b["people"]:
-            return ("No signs of life detected yet. No signal does not mean nobody.\n" + self.FOOTER)
-        L = [f"SIGNS OF LIFE (sensor: {b['people'][0]['source']}, simulated today)"]
+            return "No signs of life detected yet.\nNo signal does not mean nobody is there.\n\n" + self.FOOTER
+        L = ["SIGNS OF LIFE"]
         for p in b["people"]:
-            L.append(f"- {p['site_id']}: {breath(p)}, "
-                     f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
-                     f"confidence {p['confidence']}, {p['status']}, last reading {p['time']}")
-        L.append(self.FOOTER)
+            mark = "🚨" if self.state["sites"][p["site_id"]]["escalated"] else \
+                   "🟢" if p["status"] == "confirmed_survivor" else "🟡"
+            br = f"breathing {p['breathing_bpm']}/min ({p['trend']})" if p["breathing_bpm"] is not None \
+                else "breathing not measured"
+            conf = "confirmed" if p["status"] == "confirmed_survivor" else "not yet confirmed"
+            L.append(f"{mark} {p['site_id']}: {br}, {'moving' if p['moving'] else 'not moving'}. "
+                     f"{conf.capitalize()} ({self._src(p['source'])}).")
+        L += ["", self.FOOTER]
         return "\n".join(L)
 
     def _render_heartbeat(self, b):
-        L = [f"LIFELINE ALERT | replay +{b['hours_since_collapse']}h since 04:17"]
-        L += [f"- {a['text']}" for a in b["new_alerts"] if a["type"] != "dispatch_proposal"]
-        L += self._ack_lines(b)
-        L.append(self.FOOTER)
+        L = [f"LIFELINE ALERT · {self._clock(b)}"]
+        by = {}
+        for a in b["new_alerts"]:
+            by.setdefault(a["type"], []).append(a)
+        for a in by.get("escalation", []):
+            d = a["data"]
+            L += ["", f"🚨 URGENT {a['site_id']}: breathing dropped to {d['bpm']}/min (was {d['peak']}).",
+                  "Moved to priority 1."]
+        for a in by.get("confirmed_survivor", []):
+            d = a["data"]
+            br = f"breathing {d['bpm']}/min" if d.get("bpm") is not None else "breathing not measured"
+            L += ["", f"🟢 SURVIVOR CONFIRMED at {a['site_id']}",
+                  f"{br.capitalize()}, {'moving' if d.get('moving') else 'not moving'}. "
+                  f"2 sensors agree ({self._src(d.get('source'))})."]
+        for a in by.get("possible_survivor", []):
+            d = a["data"]
+            br = f"breathing {d['bpm']}/min" if d.get("bpm") is not None else "breathing not measured yet"
+            L += ["", f"🟡 Possible survivor at {a['site_id']}: {br}. "
+                      f"1 sensor ({self._src(d.get('source'))}), checking again."]
+        if by.get("dispatched"):
+            L += ["", "🚑 " + ", ".join(f"Team {a['data']['team']} now at {a['site_id']}" for a in by["dispatched"])]
+        if by.get("ack_survivor"):
+            L += ["", "✅ Rescue confirmed at " + ", ".join(a["site_id"] for a in by["ack_survivor"])]
+        if by.get("no_signal"):
+            ids = ", ".join(a["site_id"] for a in by["no_signal"])
+            L += ["", f"⚪ No signal yet at {ids}. People may still be inside.",
+                  "Teams move to the next building."]
+        L += self._decisions(b)
+        L += ["", self.FOOTER]
         return "\n".join(L)
 
     def _sensor_source(self):

@@ -1,3 +1,4 @@
-SIGNS OF LIFE (sensor: replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim, simulated today)
-- B-06: breathing 14.0 bpm (steady), not moving, 42 detections, confidence 0.74, confirmed_survivor, last reading 2026-10-03T18:48:42+00:00
-Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.
+No signs of life detected yet.
+No signal does not mean nobody is there.
+
+Simulated sensors · Copernicus satellite damage data · runs only on this machine

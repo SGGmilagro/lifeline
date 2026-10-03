@@ -1,14 +1,17 @@
-LIFELINE | Kahramanmaras | replay +8.0h since 04:17
-TOP SITES
-1. B-06 | Destroyed | night, residential | confirmed_survivor | Team T1 on site | why: Signs of life: 42 sensor detections
-2. B-08 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 8,317 m2
-3. B-03 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 7,272 m2
-4. B-01 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,510 m2
-5. B-05 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,327 m2
-SIGNS OF LIFE (sensor: replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim)
-- B-06: breathing 14.0 bpm (steady), not moving, 42 detections, CONFIRMED
-Teams deployed 1/3 | survivors confirmed 1 | no signal after 2 scans 2
-NEEDS YOUR ACK: dispatch Team T3 to B-08 (reply "ack B-08")
-NEEDS YOUR ACK: dispatch Team T2 to B-03 (reply "ack B-03")
-NEEDS YOUR ACK: survivor at B-06 (reply "ack B-06")
-Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.
+LIFELINE · 6 Feb 04:21 · 0.1h after quake
+Teams out 0/3 · Survivors 0 · Sites 16
+
+WHERE TO DIG
+1. B-06 Destroyed, 23,691 m² block · Team T1 ready, needs your ack
+2. B-10 Destroyed, 38,757 m² block · Team T2 ready, needs your ack
+3. B-09 Destroyed, 16,268 m² block · Team T3 ready, needs your ack
+4. B-08 Destroyed, 8,317 m² block · no team yet
+5. B-03 Destroyed, 7,272 m² block · no team yet
+
+👉 YOUR DECISION
+ack B-06 = send Team T1
+ack B-10 = send Team T2
+ack B-09 = send Team T3
+or reply: ack all
+
+Simulated sensors · Copernicus satellite damage data · runs only on this machine
