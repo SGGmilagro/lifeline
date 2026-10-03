@@ -72,7 +72,13 @@ def main():
             "source": "copernicus-ems-EMSR648-AOI04",
             "source_feature_index": i,
         })
+    aoi_counts = {}
+    for f in feats:
+        g = f["properties"]["damage_gra"]
+        aoi_counts[g] = aoi_counts.get(g, 0) + 1
     meta = {
+        "aoi_summary": {"buildings_graded": len(feats), "by_grade": aoi_counts,
+                        "method": "Photo-interpretation of post-event satellite imagery"},
         "event": "Kahramanmaras earthquake, 6 Feb 2023 04:17 local",
         "source": "Copernicus EMS Rapid Mapping EMSR648, AOI04 grading product r1 v1",
         "attribution": "Damage grading: Copernicus EMS, (c) European Union",

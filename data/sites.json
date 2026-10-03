@@ -1,4 +1,14 @@
 {
+ "aoi_summary": {
+  "buildings_graded": 7182,
+  "by_grade": {
+   "Destroyed": 21,
+   "Damaged": 7,
+   "Possibly damaged": 143,
+   "No visible damage": 7011
+  },
+  "method": "Photo-interpretation of post-event satellite imagery"
+ },
  "event": "Kahramanmaras earthquake, 6 Feb 2023 04:17 local",
  "source": "Copernicus EMS Rapid Mapping EMSR648, AOI04 grading product r1 v1",
  "attribution": "Damage grading: Copernicus EMS, (c) European Union",

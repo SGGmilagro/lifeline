@@ -3,3 +3,8 @@ data/raw/
 *.token
 .env
 __pycache__/
+data/state.json
+data/sensors.json
+data/sensor_control.json
+data/*.tmp
+demo/*.log
