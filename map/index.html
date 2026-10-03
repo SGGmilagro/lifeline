@@ -96,7 +96,8 @@ function render(d) {
     imgattr.textContent = 'Imagery © Maxar, CC BY-NC 4.0. ';
   }
   if (!fitted) {
-    const b = d.bounds || L.latLngBounds(d.sites.map(s => [s.lat, s.lon]));
+    const b = L.latLngBounds(d.sites.map(s => [s.lat, s.lon]));
+    if (d.bounds) b.extend(d.bounds);
     map.fitBounds(b, { padding:[40,40] }); fitted = true;
   }
 

@@ -89,7 +89,11 @@ async def assess(site_id: str):
                 r = await c.post(OLLAMA, json={"model": MODEL, "prompt": ASSESS_PROMPT, "images": imgs,
                                                "stream": False, "think": False, "keep_alive": -1})
                 r.raise_for_status()
-                return {**base, "method": f"local-vision ({MODEL})", "answer": r.json()["response"].strip()}
+                ans = r.json()["response"].strip()
+                word = ans.split()[0].strip(".,").lower() if ans else ""
+                agrees = {"collapsed": "Destroyed", "damaged": "Damaged"}.get(word) == s["grade_label"] or (word == "standing" and s["grade"] == 0)
+                return {**base, "method": f"local-vision ({MODEL}), second opinion only, not used in ranking",
+                        "answer": ans, "agrees_with_copernicus": agrees}
         except Exception as e:
             base["vision_error"] = str(e)[:200]
     return {**base, "method": "copernicus-grading", "answer": s["grade_label"]}
@@ -102,7 +106,12 @@ def brief():
 
 @app.get("/map")
 def map_view():
-    return engine.map_view()
+    out = engine.map_view()
+    ov = DATA / "img" / "overview.json"
+    if ov.exists():                     # Maxar post-event overlay, served locally
+        o = json.loads(ov.read_text())
+        out.update(bounds=o["bounds"], overlay_img=o["image"])
+    return out
 
 
 @app.post("/ack")
