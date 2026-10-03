@@ -90,12 +90,13 @@ def make(region):
         pad = 250
         x0, y0 = min(cx) - pad, min(cy) - pad
         side = max(max(cx) - min(cx), max(cy) - min(cy)) + 2 * pad
-        Image.fromarray(read_box(post, x0, y0, x0 + side, y0 + side, OVERVIEW_PX)).save(
-            img / "overview_after.jpg", quality=85)
+        ov = read_box(post, x0, y0, x0 + side, y0 + side, OVERVIEW_PX)
+        alpha = np.where(ov.max(axis=2) < 12, 0, 255).astype(np.uint8)   # no-data edge -> transparent
+        Image.fromarray(np.dstack([ov, alpha]), "RGBA").save(img / "overview_after.png", optimize=True)
         lons, lats = transform(epsg, "EPSG:4326", [x0, x0 + side], [y0, y0 + side])
         (img / "overview.json").write_text(json.dumps({
             "bounds": [[lats[0], lons[0]], [lats[1], lons[1]]],
-            "image": f"/regions/{region}/img/overview_after.jpg",
+            "image": f"/regions/{region}/img/overview_after.png",
             "before_date": pre_r["datetime"][:10], "after_date": post_r["datetime"][:10],
             "chips": made, "attribution": "Imagery (c) Maxar, CC BY-NC 4.0"}))
     print(f"{region}: chips for {len(made)}/{len(sites)} sites, before {pre_r['datetime'][:10]}, "
