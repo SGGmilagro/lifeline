@@ -1,9 +1,1 @@
-LIFELINE ALERT | replay +1.5h since 04:17
-- Possible survivor at B-06: breathing not measured, moving, 1 detections (sensor: ruview-sim). Reply "ack B-06".
-- B-09: no signal after 2 scans. This does not mean nobody is inside. Team T3 free for the next site.
-- B-10: no signal after 2 scans. This does not mean nobody is inside. Team T2 free for the next site.
-- CONFIRMED survivor at B-06: breathing not measured, moving, 3 detections (sensor: ruview-sim). Reply "ack B-06".
-NEEDS YOUR ACK: dispatch Team T3 to B-08 (reply "ack B-08")
-NEEDS YOUR ACK: dispatch Team T2 to B-03 (reply "ack B-03")
-NEEDS YOUR ACK: survivor at B-06 (reply "ack B-06")
-Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.
+HEARTBEAT_OK

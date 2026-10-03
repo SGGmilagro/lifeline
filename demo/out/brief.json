@@ -1,7 +1,7 @@
 {
- "generated_utc": "2026-10-03T18:45:37+00:00",
- "replay_clock": "2023-02-06 05:47 local",
- "hours_since_collapse": 1.5,
+ "generated_utc": "2026-10-03T18:48:51+00:00",
+ "replay_clock": "2023-02-06 12:15 local",
+ "hours_since_collapse": 8.0,
  "event": "Kahramanmaras earthquake, 6 Feb 2023 04:17 local",
  "counters": {
   "sites_ranked": 16,
@@ -9,16 +9,16 @@
   "survivors_confirmed": 1,
   "possible_survivors": 0,
   "no_signal_2_scans": 2,
-  "hours_since_collapse": 1.5,
+  "hours_since_collapse": 8.0,
   "baseline_first_official_map_hours": 40
  },
  "sites_ranked": [
   {
    "id": "B-06",
    "priority": 1,
-   "score": 0.979,
+   "score": 0.891,
    "reasons": [
-    "Signs of life: 4 sensor detections",
+    "Signs of life: 42 sensor detections",
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home"
    ],
@@ -32,7 +32,7 @@
   {
    "id": "B-08",
    "priority": 2,
-   "score": 0.631,
+   "score": 0.575,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -48,7 +48,7 @@
   {
    "id": "B-03",
    "priority": 3,
-   "score": 0.59,
+   "score": 0.537,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -64,7 +64,7 @@
   {
    "id": "B-01",
    "priority": 4,
-   "score": 0.558,
+   "score": 0.508,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -80,7 +80,7 @@
   {
    "id": "B-05",
    "priority": 5,
-   "score": 0.55,
+   "score": 0.501,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -96,7 +96,7 @@
   {
    "id": "B-04",
    "priority": 6,
-   "score": 0.482,
+   "score": 0.439,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -112,7 +112,7 @@
   {
    "id": "B-11",
    "priority": 7,
-   "score": 0.425,
+   "score": 0.387,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -128,7 +128,7 @@
   {
    "id": "B-13",
    "priority": 8,
-   "score": 0.4,
+   "score": 0.364,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -144,7 +144,7 @@
   {
    "id": "B-07",
    "priority": 9,
-   "score": 0.379,
+   "score": 0.345,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -160,7 +160,7 @@
   {
    "id": "B-12",
    "priority": 10,
-   "score": 0.369,
+   "score": 0.336,
    "reasons": [
     "Satellite grade Damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -176,7 +176,7 @@
   {
    "id": "B-02",
    "priority": 11,
-   "score": 0.294,
+   "score": 0.267,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -192,7 +192,7 @@
   {
    "id": "B-14",
    "priority": 12,
-   "score": 0.187,
+   "score": 0.17,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -208,7 +208,7 @@
   {
    "id": "B-16",
    "priority": 13,
-   "score": 0.096,
+   "score": 0.088,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -224,7 +224,7 @@
   {
    "id": "B-15",
    "priority": 14,
-   "score": 0.09,
+   "score": 0.082,
    "reasons": [
     "Satellite grade Possibly damaged (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -240,7 +240,7 @@
   {
    "id": "B-10",
    "priority": 15,
-   "score": 0.979,
+   "score": 0.891,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -256,7 +256,7 @@
   {
    "id": "B-09",
    "priority": 16,
-   "score": 0.883,
+   "score": 0.804,
    "reasons": [
     "Satellite grade Destroyed (Copernicus, not an inspection)",
     "Residential block, collapse at 04:17: people likely home",
@@ -273,54 +273,17 @@
  "people": [
   {
    "site_id": "B-06",
-   "breathing_bpm": null,
-   "trend": "not measured",
+   "breathing_bpm": 14.0,
+   "trend": "steady",
    "moving": false,
-   "confidence": 0.54,
-   "detections": 4,
+   "confidence": 0.74,
+   "detections": 42,
    "status": "confirmed_survivor",
-   "source": "ruview-sim",
-   "time": "2026-10-03T18:45:32+00:00"
+   "source": "replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim",
+   "time": "2026-10-03T18:48:42+00:00"
   }
  ],
- "new_alerts": [
-  {
-   "id": 7,
-   "type": "possible_survivor",
-   "site_id": "B-06",
-   "text": "Possible survivor at B-06: breathing not measured, moving, 1 detections (sensor: ruview-sim). Reply \"ack B-06\"."
-  },
-  {
-   "id": 8,
-   "type": "no_signal",
-   "site_id": "B-09",
-   "text": "B-09: no signal after 2 scans. This does not mean nobody is inside. Team T3 free for the next site."
-  },
-  {
-   "id": 9,
-   "type": "no_signal",
-   "site_id": "B-10",
-   "text": "B-10: no signal after 2 scans. This does not mean nobody is inside. Team T2 free for the next site."
-  },
-  {
-   "id": 10,
-   "type": "dispatch_proposal",
-   "site_id": "B-08",
-   "text": "Proposed: Team T3 to B-08 (priority 2, Destroyed). Reply \"ack B-08\" to dispatch."
-  },
-  {
-   "id": 11,
-   "type": "dispatch_proposal",
-   "site_id": "B-03",
-   "text": "Proposed: Team T2 to B-03 (priority 3, Destroyed). Reply \"ack B-03\" to dispatch."
-  },
-  {
-   "id": 12,
-   "type": "confirmed_survivor",
-   "site_id": "B-06",
-   "text": "CONFIRMED survivor at B-06: breathing not measured, moving, 3 detections (sensor: ruview-sim). Reply \"ack B-06\"."
-  }
- ],
+ "new_alerts": [],
  "awaiting_ack": [
   "B-08",
   "B-03",
@@ -332,8 +295,8 @@
   "Sensors: simulated today (source: replay+ruview-sim)",
   "All inference on this GB10"
  ],
- "status_text": "LIFELINE | Kahramanmaras | replay +1.5h since 04:17\nTOP SITES\n1. B-06 | Destroyed | night, residential | confirmed_survivor | Team T1 on site | why: Signs of life: 4 sensor detections\n2. B-08 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 8,317 m2\n3. B-03 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 7,272 m2\n4. B-01 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,510 m2\n5. B-05 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,327 m2\nSIGNS OF LIFE (sensor: ruview-sim)\n- B-06: breathing not measured (sensor abstained), not moving, 4 detections, CONFIRMED\nTeams deployed 1/3 | survivors confirmed 1 | no signal after 2 scans 2\nNEEDS YOUR ACK: dispatch Team T3 to B-08 (reply \"ack B-08\")\nNEEDS YOUR ACK: dispatch Team T2 to B-03 (reply \"ack B-03\")\nNEEDS YOUR ACK: survivor at B-06 (reply \"ack B-06\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
- "people_text": "SIGNS OF LIFE (sensor: ruview-sim, simulated today)\n- B-06: breathing not measured (sensor abstained), not moving, 4 detections, confidence 0.54, confirmed_survivor, last reading 2026-10-03T18:45:32+00:00\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
- "heartbeat_text": "LIFELINE ALERT | replay +1.5h since 04:17\n- Possible survivor at B-06: breathing not measured, moving, 1 detections (sensor: ruview-sim). Reply \"ack B-06\".\n- B-09: no signal after 2 scans. This does not mean nobody is inside. Team T3 free for the next site.\n- B-10: no signal after 2 scans. This does not mean nobody is inside. Team T2 free for the next site.\n- CONFIRMED survivor at B-06: breathing not measured, moving, 3 detections (sensor: ruview-sim). Reply \"ack B-06\".\nNEEDS YOUR ACK: dispatch Team T3 to B-08 (reply \"ack B-08\")\nNEEDS YOUR ACK: dispatch Team T2 to B-03 (reply \"ack B-03\")\nNEEDS YOUR ACK: survivor at B-06 (reply \"ack B-06\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
- "compute_seconds": 0.0003
+ "status_text": "LIFELINE | Kahramanmaras | replay +8.0h since 04:17\nTOP SITES\n1. B-06 | Destroyed | night, residential | confirmed_survivor | Team T1 on site | why: Signs of life: 42 sensor detections\n2. B-08 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 8,317 m2\n3. B-03 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 7,272 m2\n4. B-01 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,510 m2\n5. B-05 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,327 m2\nSIGNS OF LIFE (sensor: replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim)\n- B-06: breathing 14.0 bpm (steady), not moving, 42 detections, CONFIRMED\nTeams deployed 1/3 | survivors confirmed 1 | no signal after 2 scans 2\nNEEDS YOUR ACK: dispatch Team T3 to B-08 (reply \"ack B-08\")\nNEEDS YOUR ACK: dispatch Team T2 to B-03 (reply \"ack B-03\")\nNEEDS YOUR ACK: survivor at B-06 (reply \"ack B-06\")\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
+ "people_text": "SIGNS OF LIFE (sensor: replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim, simulated today)\n- B-06: breathing 14.0 bpm (steady), not moving, 42 detections, confidence 0.74, confirmed_survivor, last reading 2026-10-03T18:48:42+00:00\nSensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.",
+ "heartbeat_text": "HEARTBEAT_OK",
+ "compute_seconds": 0.0004
 }

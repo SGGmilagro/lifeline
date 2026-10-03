@@ -1,12 +1,12 @@
-LIFELINE | Kahramanmaras | replay +1.5h since 04:17
+LIFELINE | Kahramanmaras | replay +8.0h since 04:17
 TOP SITES
-1. B-06 | Destroyed | night, residential | confirmed_survivor | Team T1 on site | why: Signs of life: 4 sensor detections
+1. B-06 | Destroyed | night, residential | confirmed_survivor | Team T1 on site | why: Signs of life: 42 sensor detections
 2. B-08 | Destroyed | night, residential | unsearched | Team T3 proposed | why: Block footprint 8,317 m2
 3. B-03 | Destroyed | night, residential | unsearched | Team T2 proposed | why: Block footprint 7,272 m2
 4. B-01 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,510 m2
 5. B-05 | Destroyed | night, residential | unsearched | no team | why: Block footprint 6,327 m2
-SIGNS OF LIFE (sensor: ruview-sim)
-- B-06: breathing not measured (sensor abstained), not moving, 4 detections, CONFIRMED
+SIGNS OF LIFE (sensor: replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+replay+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim+ruview-sim)
+- B-06: breathing 14.0 bpm (steady), not moving, 42 detections, CONFIRMED
 Teams deployed 1/3 | survivors confirmed 1 | no signal after 2 scans 2
 NEEDS YOUR ACK: dispatch Team T3 to B-08 (reply "ack B-08")
 NEEDS YOUR ACK: dispatch Team T2 to B-03 (reply "ack B-03")

@@ -22,6 +22,9 @@ OUT = ROOT / "demo" / "out"
 OFFSET = ROOT / "data" / "commands_offset"
 SANDBOX = os.environ.get("LIFELINE_SANDBOX", "my-assistant")
 SKILL_DIR = "/sandbox/.openclaw/workspace/skills/lifeline/"
+# The 9B model sometimes prefixes relative paths with "sandbox/.openclaw/workspace/". We keep real
+# copies there too (a symlink would block NemoClaw snapshots), and read acks from both places.
+ALT_DIR = "/sandbox/.openclaw/workspace/sandbox/.openclaw/workspace/skills/lifeline/"
 TOOLBOX = "http://127.0.0.1:8090"
 CHAT_ID = os.environ.get("LIFELINE_CHAT_ID")      # Telegram group id; unset = print only
 
@@ -32,12 +35,13 @@ def nemoclaw(*args, timeout=60):
 
 
 def apply_commands(c):
-    with tempfile.TemporaryDirectory() as tmp:
-        code, _ = nemoclaw("download", SKILL_DIR + "commands.txt", tmp)
-        f = Path(tmp) / "commands.txt"
-        if code != 0 or not f.exists():
-            return
-        lines = [l.strip() for l in f.read_text().splitlines() if l.strip()]
+    lines = []
+    for d in (SKILL_DIR, ALT_DIR):
+        with tempfile.TemporaryDirectory() as tmp:
+            code, _ = nemoclaw("download", d + "commands.txt", tmp)
+            f = Path(tmp) / "commands.txt"
+            if code == 0 and f.exists():
+                lines += [l.strip() for l in f.read_text().splitlines() if l.strip()]
     done = int(OFFSET.read_text()) if OFFSET.exists() else 0
     for line in lines[done:]:
         # Accept "ack B-07", "scan B-07", "ack all"; a bare "B-07"/"all" from the agent means ack.
@@ -61,7 +65,8 @@ def main():
         (OUT / "people.txt").write_text(b["people_text"] + "\n")
         (OUT / "alerts.txt").write_text(b["heartbeat_text"] + "\n")
         for name in ("brief.json", "status.txt", "people.txt", "alerts.txt"):
-            nemoclaw("upload", str(OUT / name), SKILL_DIR)
+            for d in (SKILL_DIR, ALT_DIR):
+                nemoclaw("upload", str(OUT / name), d)
         c_ = b["counters"]
         print(f"{b['replay_clock']} | deployed {c_['teams_deployed']} | confirmed {c_['survivors_confirmed']}"
               f" | awaiting {b['awaiting_ack']} | new alerts {len(b['new_alerts'])}")
