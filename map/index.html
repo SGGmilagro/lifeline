@@ -136,6 +136,18 @@
   #loading[hidden] { display:none; }
   #map { background:#0d1117 radial-gradient(circle at 1px 1px, #1c2330 1px, transparent 0) 0 0/22px 22px; }
   .leaflet-container { background:transparent; }
+
+  .chat #convo { max-height:300px; overflow:auto; display:flex; flex-direction:column; gap:6px; margin-bottom:8px; padding-right:2px; }
+  .msg { max-width:92%; padding:6px 9px; border-radius:10px; font-size:12.5px; line-height:1.4; white-space:pre-wrap; word-break:break-word; }
+  .msg .who { display:block; font-size:10.5px; color:var(--muted); margin-bottom:2px; }
+  .msg.user { align-self:flex-end; background:#1f6feb33; border:1px solid #1f6feb66; }
+  .msg.bot { align-self:flex-start; background:#0b0e13; border:1px solid var(--line); }
+  .msg.pending { opacity:.7; font-style:italic; }
+  #cmdform { display:flex; gap:6px; }
+  #cmd { flex:1; min-width:0; font:inherit; color:var(--ink); background:#0b0e13; border:1px solid var(--line); border-radius:8px; padding:7px 10px; }
+  #cmd:focus { outline:2px solid #1f6feb; }
+  .chips { display:flex; flex-wrap:wrap; gap:5px; margin-top:6px; }
+  .chips button { font-size:11.5px; padding:3px 9px; border-radius:14px; }
 </style>
 </head>
 <body>
@@ -182,6 +194,23 @@
     <section class="decide">
       <h3>✋ Waiting for your decision</h3>
       <div class="card" id="decisions"></div>
+    </section>
+    <section>
+      <h3>💬 Talk to Lifeline <span class="note">same commands as Telegram · both stay in sync</span></h3>
+      <div class="card chat">
+        <div id="convo"></div>
+        <form id="cmdform" autocomplete="off">
+          <input id="cmd" placeholder='Try: status · ack 5 · report 8 tapping heard · Is Building 12 empty?' aria-label="Command">
+          <button class="go" type="submit">Send</button>
+        </form>
+        <div class="chips">
+          <button type="button" onclick="say('status')">status</button>
+          <button type="button" onclick="say('who is alive')">who is alive</button>
+          <button type="button" onclick="say('ack all')">ack all</button>
+          <button type="button" onclick="fill('report 8 tapping heard')">report…</button>
+          <button type="button" onclick="say('help')">help</button>
+        </div>
+      </div>
     </section>
     <section>
       <h3>🏢 Selected building <span id="siteid" class="note"></span></h3>
@@ -492,6 +521,24 @@ function drawScope(l) {
   g.fillText('antenna 1', 6, 13); g.fillStyle = liveMoving ? '#a5f3b5' : '#d29922'; g.fillText('antenna 2', 70, 13);
 }
 
+const WHO = { 'telegram-user':'👤 Telegram', 'telegram-bot':'🤖 Lifeline → Telegram',
+              'dashboard-user':'🖥️ Dashboard', 'dashboard-bot':'🤖 Lifeline → Dashboard' };
+let pending = null, lastChat = '';
+function renderChat(msgs) {
+  const html = msgs.map(m => `<div class="msg ${m.who.endsWith('user') ? 'user' : 'bot'}"><span class="who">${WHO[m.who] || m.who} · ${
+      new Date(m.ts * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>${esc(m.text.replace(/\*\*/g, ''))}</div>`).join('')
+    + (pending ? `<div class="msg bot pending"><span class="who">🤖 Lifeline</span>thinking on the GB10…</div>` : '');
+  if (html !== lastChat) { lastChat = html; const c = $('convo'); c.innerHTML = html || '<span class="muted">No messages yet.</span>'; c.scrollTop = c.scrollHeight; }
+}
+async function pollChat() { try { renderChat((await (await fetch('/chat')).json()).messages); } catch (e) { console.warn(e); } }
+async function say(text) {
+  if (!text.trim()) return;
+  pending = text; pollChat();
+  try { await post('/command?text=' + encodeURIComponent(text)); } finally { pending = null; pollChat(); poll(); pollFeed(); }
+}
+function fill(t) { $('cmd').value = t; $('cmd').focus(); }
+$('cmdform').onsubmit = e => { e.preventDefault(); const t = $('cmd').value; $('cmd').value = ''; say(t); };
+
 async function startTest() { await post('/livetest'); pollTest(); }
 async function pollTest() {
   const t = await (await fetch('/livetest')).json();
@@ -539,7 +586,8 @@ async function pollFeed() {
 }
 
 async function poll() { try { render(await (await fetch('/map')).json()); } catch (e) { console.warn(e); } }
-loadRegions(); poll(); pollRuview(); pollFeed(); pollProof(); pollTest(); pollScope();
+loadRegions(); poll(); pollRuview(); pollFeed(); pollProof(); pollTest(); pollScope(); pollChat();
+setInterval(pollChat, 3000);
 setInterval(() => { if ($('testbanner').hidden) pollProof(); }, 15000);
 setInterval(poll, 2000); setInterval(pollRuview, 2000); setInterval(pollFeed, 3000);
 </script>

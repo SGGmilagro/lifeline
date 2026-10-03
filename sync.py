@@ -38,6 +38,31 @@ SEEN = ROOT / "data" / "commands_seen.json"
 CMD = re.compile(r"(?i)^\s*(?:@\w+\s+)?(ack|scan|go)\s+(?:building\s*)?(all|[A-Za-zçğıöşüÇĞİÖŞÜ]{3,}|b-?\d{1,2}|\d{1,2})\s*$")
 
 
+CHAT_LOG = ROOT / "data" / "chat_log.json"
+
+
+def export_chat():
+    """Last messages of the Telegram conversation (commander and bot) for the dashboard panel."""
+    code, out = nemoclaw("exec", "--", "sh", "-c",
+                         f"cd {SESSIONS} && ls *.jsonl 2>/dev/null | grep -v -e '^lifeline-' -e trajectory "
+                         f"| xargs -r grep -h -e '\"role\":\"user\"' -e '\"role\":\"assistant\"' | tail -80 || true",
+                         timeout=60)
+    rows = []
+    for line in out.splitlines():
+        try:
+            m = json.loads(line)["message"]
+        except (json.JSONDecodeError, KeyError):
+            continue
+        c = m.get("content")
+        text = c if isinstance(c, str) else " ".join(p.get("text", "") for p in (c or []) if isinstance(p, dict) and p.get("type") == "text")
+        text = text.strip()
+        if not text or text.startswith(("[OpenClaw", "LIFELINE HEARTBEAT")) or text == "HEARTBEAT_OK":
+            continue
+        rows.append({"who": "telegram-user" if m["role"] == "user" else "telegram-bot", "text": text[:1500],
+                     "ts": m.get("timestamp", 0) / 1000})
+    CHAT_LOG.write_text(json.dumps(rows[-40:]))
+
+
 def chat_commands():
     """Commander messages from the Telegram chat transcripts in the sandbox (not our own test or
     heartbeat sessions). Reading the chat directly makes every ack take effect even when the
@@ -97,6 +122,10 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     with httpx.Client(timeout=10) as c:
         apply_commands(c)
+        try:
+            export_chat()
+        except Exception as e:
+            print("chat export failed:", e)
         b = c.get(f"{TOOLBOX}/brief").json()
         (OUT / "brief.json").write_text(json.dumps(b, indent=1, ensure_ascii=False))
         (OUT / "status.txt").write_text(b["status_text"] + "\n")

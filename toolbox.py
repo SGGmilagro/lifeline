@@ -195,6 +195,64 @@ def livetest():
     return out
 
 
+DASH_LOG = DATA / "dashboard_log.json"
+
+
+def _dash_log(who, text):
+    import time as _t
+    rows = json.loads(DASH_LOG.read_text()) if DASH_LOG.exists() else []
+    rows.append({"who": who, "text": text, "ts": _t.time()})
+    DASH_LOG.write_text(json.dumps(rows[-40:]))
+
+
+def _ask_agent(text):
+    """Free questions go to the same local qwen agent (in the OpenShell sandbox) that runs Telegram."""
+    import subprocess, time as _t
+    r = subprocess.run(["nemoclaw", "my-assistant", "agent", "-m", text, "--session-id", f"lifeline-dash-{int(_t.time())}",
+                        "--thinking", "off", "--timeout", "90"], capture_output=True, text=True, timeout=120)
+    lines = [l for l in r.stdout.splitlines() if l.strip() and not l.startswith(("(node:", "(Use", "[gateway]", "  ", "\x1b"))
+             and "Active gateway" not in l]
+    return "\n".join(lines).strip() or "The agent did not answer. Try again."
+
+
+@app.post("/command")
+async def command(text: str):
+    """Dashboard command box: same commands as Telegram; anything else is asked to the local agent."""
+    from sync import CMD, REPORT
+    t = text.strip()
+    _dash_log("dashboard-user", t)
+    low = t.lower()
+    b = engine.brief()
+    rep, m = REPORT.match(t), CMD.match(t)
+    if rep:
+        out = engine.report(rep.group(1), rep.group(2) or "sign of life")
+    elif m and m.group(1).lower() == "go" and m.group(2).isalpha() and m.group(2).lower() != "all":
+        out = set_region(m.group(2))["result"]
+    elif m and m.group(1).lower() == "ack":
+        out = "\n".join(engine.ack(m.group(2)))
+    elif m and m.group(1).lower() == "scan":
+        out = engine.request_scan(m.group(2))
+    elif low in ("status", "where do we dig", "plan"):
+        out = b["status_text"]
+    elif low in ("who is alive", "people", "survivors"):
+        out = b["people_text"]
+    elif low in ("help", "?", "hi", "hello"):
+        out = b["help_text"]
+    else:
+        out = await asyncio.to_thread(_ask_agent, t)
+    _dash_log("dashboard-bot", out)
+    return {"reply": out}
+
+
+@app.get("/chat")
+def chat():
+    rows = []
+    for f in (DATA / "chat_log.json", DASH_LOG):
+        if f.exists():
+            rows += json.loads(f.read_text())
+    return {"messages": sorted(rows, key=lambda r: r["ts"])[-40:]}
+
+
 @app.get("/livesignal")
 def livesignal():
     return _live() or {}
