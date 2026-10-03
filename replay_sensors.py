@@ -5,10 +5,12 @@ Run the feed (one reading per sensor every 10 s):
 Control a running feed from another shell:
     python replay_sensors.py --trigger B-07 --bpm 14 --moving false
     python replay_sensors.py --decline B-07 --to 8 --over 60
+    python replay_sensors.py --ruview B-06     # sensor a at B-06 reads RuView (simulated CSI)
     python replay_sensors.py --reset
 """
 import argparse
 import json
+import urllib.request
 import os
 import time
 from datetime import datetime, timezone
@@ -21,6 +23,31 @@ CONTROL = DATA / "sensor_control.json"
 TICK_S = 10
 SECOND_SENSOR_DELAY_S = 20      # sensor b picks the signal up 20 s after sensor a
 CONFIDENCE = {"a": 0.81, "b": 0.74}  # fixed simulated values, not measured
+RUVIEW = "http://127.0.0.1:3000/api/v1"
+RUVIEW_TOKEN = Path(__file__).parent / "ruview.token"   # local-only bearer token for the container
+
+
+def ruview_get(path):
+    req = urllib.request.Request(f"{RUVIEW}/{path}",
+                                 headers={"Authorization": f"Bearer {RUVIEW_TOKEN.read_text().strip()}"})
+    with urllib.request.urlopen(req, timeout=3) as r:
+        return json.loads(r.read())
+
+
+def ruview_reading():
+    """RuView's own presence/motion classification. Breathing only if RuView does not abstain."""
+    s = ruview_get("sensing/latest")
+    cls = s["classification"]
+    bpm = None
+    try:
+        v = ruview_get("vital-signs")
+        if v.get("authority") != "abstained":
+            bpm = v["vital_signs"]["breathing_rate_bpm"]
+    except Exception:
+        pass
+    return {"presence": bool(cls["presence"]), "moving": cls["motion_level"] not in ("present_still", "absent"),
+            "confidence": round(cls["confidence"], 2), "breathing_bpm": bpm,
+            "source": "ruview-sim" if s.get("source", "simulated") in ("simulated", None) else "ruview"}
 
 
 def write_atomic(path, obj):
@@ -52,11 +79,17 @@ def make_readings(site_ids, control, now, tick):
                  "breathing_bpm": None, "moving": False, "confidence": None,
                  "time": iso, "tick": tick, "source": "replay"}
             delay = 0 if s == "a" else SECOND_SENSOR_DELAY_S
-            if sig and now >= sig["start"] + delay:
+            if sig and sig.get("ruview") and s == "a":
+                try:
+                    r.update(ruview_reading())
+                except Exception as e:
+                    r["source"] = f"ruview-unreachable ({type(e).__name__})"
+            elif sig and "bpm" in sig and now >= sig["start"] + delay:
                 r.update(presence=True, breathing_bpm=bpm_now(sig, now),
                          moving=sig["moving"], confidence=CONFIDENCE[s])
             readings.append(r)
-    return {"tick": tick, "time": iso, "source": "replay", "readings": readings}
+    sources = sorted({r["source"] for r in readings})
+    return {"tick": tick, "time": iso, "source": "+".join(sources), "readings": readings}
 
 
 def run():
@@ -77,6 +110,7 @@ def main():
     ap.add_argument("--decline", metavar="SITE")
     ap.add_argument("--to", type=float, default=8)
     ap.add_argument("--over", type=float, default=60)
+    ap.add_argument("--ruview", metavar="SITE")
     ap.add_argument("--reset", action="store_true")
     a = ap.parse_args()
 
@@ -85,9 +119,14 @@ def main():
         print("all survivor signals cleared")
     elif a.trigger:
         c = load_control()
-        c[a.trigger] = {"start": time.time(), "bpm": a.bpm, "moving": a.moving == "true"}
+        c[a.trigger] = {**c.get(a.trigger, {}), "start": time.time(), "bpm": a.bpm, "moving": a.moving == "true"}
         write_atomic(CONTROL, c)
         print(f"signal started at {a.trigger}: {a.bpm} bpm, moving={a.moving}")
+    elif a.ruview:
+        c = load_control()
+        c.setdefault(a.ruview, {"start": time.time(), "moving": False})["ruview"] = True
+        write_atomic(CONTROL, c)
+        print(f"sensor {a.ruview}-a now reads RuView (simulated CSI)")
     elif a.decline:
         c = load_control()
         sig = c.get(a.decline)

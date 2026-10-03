@@ -123,7 +123,7 @@ function render(d) {
     return `<div class="row ack">${s.proposed_team ? `Dispatch Team ${s.proposed_team} → ${id}` : `Survivor alert at ${id}`}</div>`;
   }).join('') : '<div class="row st">none</div>';
   people.innerHTML = d.people.length ? d.people.map(p =>
-    `<div class="row"><span class="id">${p.site_id}</span><span class="st">${p.breathing_bpm} bpm · ${p.status.replace('_', ' ')}</span></div>`
+    `<div class="row"><span class="id">${p.site_id}</span><span class="st">${p.breathing_bpm == null ? 'breathing n/a' : p.breathing_bpm + ' bpm'} · ${p.status.replace('_', ' ')}</span></div>`
   ).join('') : '<div class="row st">none detected yet (no signal ≠ nobody)</div>';
   list.innerHTML = [...d.sites].sort((a, b) => a.priority - b.priority).map(s =>
     `<div class="row"><span class="p">${s.priority}</span><span class="id">${s.id}</span>` +

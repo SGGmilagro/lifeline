@@ -8,3 +8,4 @@ data/sensors.json
 data/sensor_control.json
 data/*.tmp
 demo/*.log
+ruview.env.token

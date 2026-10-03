@@ -43,6 +43,12 @@ def dist_m(a, b):
     return math.hypot(dx, dy)
 
 
+def breath(p):
+    if p["breathing_bpm"] is None:
+        return "breathing not measured (sensor abstained)"
+    return f"breathing {p['breathing_bpm']} bpm ({p['trend']})"
+
+
 def write_atomic(path, obj):
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(obj, indent=1, ensure_ascii=False))
@@ -243,10 +249,12 @@ class Engine:
         for r in hits:
             ss["detections"].append({"sensor_id": r["sensor_id"], "tick": r["tick"], "real_time": now,
                                      "bpm": r["breathing_bpm"], "confidence": r["confidence"]})
-        bpm = min(r["breathing_bpm"] for r in hits)
-        ss["bpm_hist"].append([now, bpm])
+        rates = [r["breathing_bpm"] for r in hits if r["breathing_bpm"] is not None]
+        bpm = min(rates) if rates else None      # RuView may abstain on breathing
+        if bpm is not None:
+            ss["bpm_hist"].append([now, bpm])
         ss["moving"] = any(r["moving"] for r in hits)
-        ss["source"] = hits[0]["source"]
+        ss["source"] = "+".join(sorted({r["source"] for r in hits} | set(filter(None, [ss["source"]]))))
 
         sensors = {d["sensor_id"] for d in ss["detections"]}
         times = [d["real_time"] for d in ss["detections"]]
@@ -256,14 +264,14 @@ class Engine:
             ss["status"] = new_status
             label = "CONFIRMED survivor" if confirmed else "Possible survivor"
             self._alert(new_status, sid,
-                        f"{label} at {sid}: breathing {bpm} bpm, "
+                        f"{label} at {sid}: breathing {f'{bpm} bpm' if bpm is not None else 'not measured'}, "
                         f"{'moving' if ss['moving'] else 'not moving'}, "
                         f"{len(ss['detections'])} detections (sensor: {ss['source']}). "
                         f"Reply \"ack {sid}\".")
             if sid not in st["survivor_ack"]:
                 st["survivor_ack"].append(sid)
 
-        if not ss["escalated"]:
+        if not ss["escalated"] and bpm is not None:
             recent = [b for t, b in ss["bpm_hist"] if now - t <= ESCALATE_WINDOW_S]
             peak = max(recent)
             if bpm < ESCALATE_BPM or (peak - bpm) / peak >= ESCALATE_DROP:
@@ -288,14 +296,18 @@ class Engine:
             if not ss["detections"]:
                 continue
             hist = ss["bpm_hist"]
-            last = hist[-1][1]
-            past = [b for t, b in hist if hist[-1][0] - t <= 60]
-            trend = "falling" if past[0] - last >= 1 else "rising" if last - past[0] >= 1 else "steady"
+            if hist:
+                last = hist[-1][1]
+                past = [b for t, b in hist if hist[-1][0] - t <= 60]
+                trend = "falling" if past[0] - last >= 1 else "rising" if last - past[0] >= 1 else "steady"
+                t_last = hist[-1][0]
+            else:
+                last, trend, t_last = None, "not measured", ss["detections"][-1]["real_time"]
             out.append({"site_id": sid, "breathing_bpm": last, "trend": trend, "moving": ss["moving"],
-                        "confidence": max(d["confidence"] for d in ss["detections"][-2:]),
+                        "confidence": max(d["confidence"] or 0 for d in ss["detections"][-2:]),
                         "detections": len(ss["detections"]), "status": ss["status"],
                         "source": ss["source"],
-                        "time": datetime.fromtimestamp(hist[-1][0], timezone.utc).isoformat(timespec="seconds")})
+                        "time": datetime.fromtimestamp(t_last, timezone.utc).isoformat(timespec="seconds")})
         return out
 
     def counters(self):
@@ -369,7 +381,7 @@ class Engine:
         if b["people"]:
             L.append(f"SIGNS OF LIFE (sensor: {b['people'][0]['source']})")
             for p in b["people"]:
-                L.append(f"- {p['site_id']}: breathing {p['breathing_bpm']} bpm ({p['trend']}), "
+                L.append(f"- {p['site_id']}: {breath(p)}, "
                          f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
                          f"{'CONFIRMED' if p['status'] == 'confirmed_survivor' else 'POSSIBLE'}")
         else:
@@ -386,7 +398,7 @@ class Engine:
             return ("No signs of life detected yet. No signal does not mean nobody.\n" + self.FOOTER)
         L = [f"SIGNS OF LIFE (sensor: {b['people'][0]['source']}, simulated today)"]
         for p in b["people"]:
-            L.append(f"- {p['site_id']}: breathing {p['breathing_bpm']} bpm ({p['trend']}), "
+            L.append(f"- {p['site_id']}: {breath(p)}, "
                      f"{'moving' if p['moving'] else 'not moving'}, {p['detections']} detections, "
                      f"confidence {p['confidence']}, {p['status']}, last reading {p['time']}")
         L.append(self.FOOTER)

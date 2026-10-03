@@ -1,2 +1,3 @@
-No signs of life detected yet. No signal does not mean nobody.
+SIGNS OF LIFE (sensor: ruview-sim, simulated today)
+- B-06: breathing not measured (sensor abstained), not moving, 4 detections, confidence 0.54, confirmed_survivor, last reading 2026-10-03T18:45:32+00:00
 Sensors simulated today. Damage from Copernicus satellite grading, not inspection. Nothing left this machine.
