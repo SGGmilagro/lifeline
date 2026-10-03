@@ -14,3 +14,10 @@ demo/backup/
 demo/ffprof*
 demo/*.png
 data/regions/*/tiles/
+data/chat_log.json
+data/dashboard_log.json
+data/commands_seen.json
+data/current_region
+data/live_sensor.json
+data/live_threshold.json
+data/*.tmp
